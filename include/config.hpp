@@ -23,6 +23,7 @@ struct AppConfig {
     std::string spotify_client_secret;
     std::string fallen_api_url{"https://beta.fallenapi.fun"};
     std::string fallen_api_key;
+    std::string music_api_url;
     std::string ping_img_url{"https://telegra.ph/file/91533956c91d0fd7c9f20.jpg"};
     std::vector<std::string> start_images;
 };

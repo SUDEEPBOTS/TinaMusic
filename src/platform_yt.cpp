@@ -78,7 +78,16 @@ std::optional<Track> PlatformYouTube::SearchTrack(const std::string& query, cons
         t.requester_id = requester_id;
         t.platform = "YouTube";
 
-        t.stream_url = ExtractDirectAudioURL(t.url);
+        const char* env_music_api = std::getenv("MUSIC_API_URL");
+        std::string music_api = env_music_api ? env_music_api : "https://music.yukiapi.site/stream/{VIDEO_ID}?key=yuki_96fcd2d09a8d4f1e36896505bd6ebda8";
+        auto pos = music_api.find("{VIDEO_ID}");
+        if (!t.id.empty() && pos != std::string::npos) {
+            std::string direct_url = music_api;
+            direct_url.replace(pos, 10, t.id);
+            t.stream_url = direct_url;
+        } else {
+            t.stream_url = ExtractDirectAudioURL(t.url);
+        }
         return t;
     } catch (const std::exception& e) {
         Logger::Error("YOUTUBE", std::string("JSON parsing error: ") + e.what());
@@ -126,7 +135,17 @@ std::optional<Track> PlatformYouTube::GetRelatedTrack(const std::string& current
             t.requester_name = "🎵 ᴀᴜᴛᴏᴘʟᴀʏ";
             t.requester_id = 0;
             t.platform = "YouTube";
-            t.stream_url = ExtractDirectAudioURL(t.url);
+
+            const char* env_music_api = std::getenv("MUSIC_API_URL");
+            std::string music_api = env_music_api ? env_music_api : "https://music.yukiapi.site/stream/{VIDEO_ID}?key=yuki_96fcd2d09a8d4f1e36896505bd6ebda8";
+            auto pos = music_api.find("{VIDEO_ID}");
+            if (!t.id.empty() && pos != std::string::npos) {
+                std::string direct_url = music_api;
+                direct_url.replace(pos, 10, t.id);
+                t.stream_url = direct_url;
+            } else {
+                t.stream_url = ExtractDirectAudioURL(t.url);
+            }
             return t;
         } catch (...) {
             continue;
@@ -137,6 +156,30 @@ std::optional<Track> PlatformYouTube::GetRelatedTrack(const std::string& current
 
 std::string PlatformYouTube::ExtractDirectAudioURL(const std::string& video_url) {
     std::string cleanUrl = SanitizeInput(video_url);
+    const char* env_music_api = std::getenv("MUSIC_API_URL");
+    std::string music_api = env_music_api ? env_music_api : "https://music.yukiapi.site/stream/{VIDEO_ID}?key=yuki_96fcd2d09a8d4f1e36896505bd6ebda8";
+    auto pos = music_api.find("{VIDEO_ID}");
+    if (pos != std::string::npos) {
+        std::string vid;
+        auto vpos = cleanUrl.find("v=");
+        if (vpos != std::string::npos) {
+            vid = cleanUrl.substr(vpos + 2);
+            auto amp = vid.find('&');
+            if (amp != std::string::npos) vid = vid.substr(0, amp);
+        } else {
+            auto slash = cleanUrl.rfind('/');
+            if (slash != std::string::npos && slash + 1 < cleanUrl.length()) {
+                vid = cleanUrl.substr(slash + 1);
+                auto qmark = vid.find('?');
+                if (qmark != std::string::npos) vid = vid.substr(0, qmark);
+            }
+        }
+        if (!vid.empty()) {
+            std::string direct_url = music_api;
+            direct_url.replace(pos, 10, vid);
+            return direct_url;
+        }
+    }
     std::string cmd = "yt-dlp -g -f bestaudio/best \"" + cleanUrl + "\" 2>/dev/null";
     std::string out = ExecCommand(cmd);
     while (!out.empty() && (out.back() == '\n' || out.back() == '\r')) {
