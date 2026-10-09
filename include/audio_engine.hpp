@@ -7,6 +7,7 @@
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <vector>
 
 class AudioStreamSession {
 public:
@@ -17,6 +18,9 @@ public:
     void Pause();
     void Resume();
     void Stop();
+    void Mute();
+    void Unmute();
+    bool IsMuted() const;
     bool IsRunning() const;
 
     int64_t GetCurrentPosition() const;
@@ -31,6 +35,7 @@ private:
     int volume_{100};
     pid_t ffmpeg_pid_{-1};
     std::atomic<bool> is_paused_{false};
+    std::atomic<bool> is_muted_{false};
     std::atomic<bool> is_running_{false};
     std::chrono::steady_clock::time_point start_time_;
 };
@@ -44,10 +49,14 @@ public:
     void PausePlayback(int64_t chat_id);
     void ResumePlayback(int64_t chat_id);
     void StopPlayback(int64_t chat_id);
+    void MutePlayback(int64_t chat_id);
+    void UnmutePlayback(int64_t chat_id);
+    bool IsMuted(int64_t chat_id);
     bool SeekPlayback(int64_t chat_id, int64_t seconds);
     bool SetPlaybackSpeed(int64_t chat_id, double speed);
     bool IsActive(int64_t chat_id);
     int64_t GetPosition(int64_t chat_id);
+    std::vector<int64_t> GetActiveChats();
 
 private:
     AudioEngine() = default;

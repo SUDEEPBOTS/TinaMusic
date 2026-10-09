@@ -31,6 +31,18 @@ void QueueManager::Enqueue(int64_t chat_id, const Track& track) {
     }
 }
 
+void QueueManager::EnqueueForce(int64_t chat_id, const Track& track) {
+    auto& q = GetOrCreateQueue(chat_id);
+    std::lock_guard<std::mutex> lock(q.queue_mutex);
+
+    if (q.active_track.has_value()) {
+        q.pending_tracks.push_front(*q.active_track);
+    }
+    q.active_track = track;
+    q.played_ids.insert(track.id);
+    q.status = PlaybackStatus::PLAYING;
+}
+
 std::optional<Track> QueueManager::Next(int64_t chat_id) {
     auto& q = GetOrCreateQueue(chat_id);
     std::lock_guard<std::mutex> lock(q.queue_mutex);
@@ -76,6 +88,44 @@ void QueueManager::Clear(int64_t chat_id) {
     q.status = PlaybackStatus::IDLE;
 }
 
+std::vector<Track> QueueManager::ClearPending(int64_t chat_id) {
+    auto& q = GetOrCreateQueue(chat_id);
+    std::lock_guard<std::mutex> lock(q.queue_mutex);
+    std::vector<Track> cleared(q.pending_tracks.begin(), q.pending_tracks.end());
+    q.last_cleared = cleared;
+    q.pending_tracks.clear();
+    return cleared;
+}
+
+bool QueueManager::RestoreQueue(int64_t chat_id) {
+    auto& q = GetOrCreateQueue(chat_id);
+    std::lock_guard<std::mutex> lock(q.queue_mutex);
+    if (q.last_cleared.empty()) return false;
+    for (const auto& t : q.last_cleared) {
+        q.pending_tracks.push_back(t);
+    }
+    q.last_cleared.clear();
+    return true;
+}
+
+bool QueueManager::RemoveAt(int64_t chat_id, size_t index) {
+    auto& q = GetOrCreateQueue(chat_id);
+    std::lock_guard<std::mutex> lock(q.queue_mutex);
+    if (index >= q.pending_tracks.size()) return false;
+    q.pending_tracks.erase(q.pending_tracks.begin() + index);
+    return true;
+}
+
+bool QueueManager::MoveTrack(int64_t chat_id, size_t from_index, size_t to_index) {
+    auto& q = GetOrCreateQueue(chat_id);
+    std::lock_guard<std::mutex> lock(q.queue_mutex);
+    if (from_index >= q.pending_tracks.size() || to_index >= q.pending_tracks.size()) return false;
+    Track t = q.pending_tracks[from_index];
+    q.pending_tracks.erase(q.pending_tracks.begin() + from_index);
+    q.pending_tracks.insert(q.pending_tracks.begin() + to_index, t);
+    return true;
+}
+
 void QueueManager::Shuffle(int64_t chat_id) {
     auto& q = GetOrCreateQueue(chat_id);
     std::lock_guard<std::mutex> lock(q.queue_mutex);
@@ -114,6 +164,12 @@ size_t QueueManager::QueueSize(int64_t chat_id) {
     auto& q = GetOrCreateQueue(chat_id);
     std::lock_guard<std::mutex> lock(q.queue_mutex);
     return q.pending_tracks.size() + (q.active_track.has_value() ? 1 : 0);
+}
+
+size_t QueueManager::PendingSize(int64_t chat_id) {
+    auto& q = GetOrCreateQueue(chat_id);
+    std::lock_guard<std::mutex> lock(q.queue_mutex);
+    return q.pending_tracks.size();
 }
 
 bool QueueManager::HasNext(int64_t chat_id) {
