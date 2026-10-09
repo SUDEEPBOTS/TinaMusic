@@ -70,6 +70,22 @@ void TestDatabase() {
     db.SetThumbnails(-100888, true);
     assert(db.IsThumbnailsEnabled(-100888));
 
+    db.SetMaintenance(true, "Server upgrade");
+    assert(db.IsMaintenanceEnabled() == true);
+    assert(db.GetMaintenanceReason() == "Server upgrade");
+    db.SetMaintenance(false, "");
+    assert(db.IsMaintenanceEnabled() == false);
+
+    db.SetLoggerEnabled(true);
+    assert(db.IsLoggerEnabled() == true);
+    db.SetLoggerEnabled(false);
+    assert(db.IsLoggerEnabled() == false);
+
+    db.SetAutoLeaveEnabled(true);
+    assert(db.IsAutoLeaveEnabled() == true);
+    db.SetAutoLeaveEnabled(false);
+    assert(db.IsAutoLeaveEnabled() == false);
+
     Logger::Info("TEST", "Database tests passed!");
 }
 

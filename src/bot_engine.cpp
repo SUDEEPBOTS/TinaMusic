@@ -245,22 +245,59 @@ std::string BotEngine::GetAutoplayMessage(bool enabled) {
 }
 
 nlohmann::json BotEngine::MakeSettingsMarkup(int64_t chat_id) {
+    auto& lm = LocalizationManager::Instance();
     ChatConfig cfg = Database::Instance().GetChatConfig(chat_id);
-    std::string cleanText = cfg.clean_mode ? "Clean Mode: ON ✅" : "Clean Mode: OFF ❌";
-    std::string autoText = cfg.autoplay ? "Autoplay: ON 📻" : "Autoplay: OFF 📻";
-    std::string thumbText = cfg.show_thumbnails ? "Thumbnails: ON 🖼️" : "Thumbnails: OFF 🖼️";
+
+    std::string admin_mode_status = lm.F(chat_id, "adminmode_status_adminauth");
+    if (cfg.admin_mode == "admin") admin_mode_status = lm.F(chat_id, "adminmode_status_admin");
+    else if (cfg.admin_mode == "everyone") admin_mode_status = lm.F(chat_id, "adminmode_status_everyone");
+
+    std::string play_mode_status = (cfg.play_mode == "Admins") ?
+        lm.F(chat_id, "playmode_status_admins") : lm.F(chat_id, "playmode_status_everyone");
+
+    std::string cmd_delete_status = cfg.command_delete ? lm.F(chat_id, "enabled") : lm.F(chat_id, "disabled");
+    std::string clean_mode_status = cfg.clean_mode ? lm.F(chat_id, "enabled") : lm.F(chat_id, "disabled");
+    int clean_duration_val = cfg.clean_mode_duration > 0 ? cfg.clean_mode_duration : 15;
+    std::string clean_duration = std::to_string(clean_duration_val) + "m";
+    std::string thumb_status = cfg.show_thumbnails ? lm.F(chat_id, "enabled") : lm.F(chat_id, "disabled");
+    std::string autoplay_status = cfg.autoplay ? lm.F(chat_id, "enabled") : lm.F(chat_id, "disabled");
+
     return {
         {"inline_keyboard", {
             {
-                {{"text", cleanText}, {"callback_data", "set_clean"}},
-                {{"text", autoText}, {"callback_data", "set_autoplay"}}
+                {{"text", lm.F(chat_id, "settings_btn_adminmode")}, {"callback_data", "info:adminmode"}},
+                {{"text", admin_mode_status}, {"callback_data", "set:adminmode"}}
             },
             {
-                {{"text", thumbText}, {"callback_data", "set_thumb"}},
-                {{"text", "🌐 Language"}, {"callback_data", "set_lang"}}
+                {{"text", lm.F(chat_id, "settings_btn_playmode")}, {"callback_data", "info:playmode"}},
+                {{"text", play_mode_status}, {"callback_data", "set:playmode"}}
             },
             {
-                {{"text", "🔒 Close"}, {"callback_data", "close"}}
+                {{"text", lm.F(chat_id, "settings_btn_cmddelete")}, {"callback_data", "info:cmddelete"}},
+                {{"text", cmd_delete_status}, {"callback_data", "set:cmddelete"}}
+            },
+            {
+                {{"text", lm.F(chat_id, "settings_btn_cleanmode")}, {"callback_data", "info:cleanmode"}},
+                {{"text", clean_mode_status}, {"callback_data", "set:cleanmode"}}
+            },
+            {
+                {{"text", lm.F(chat_id, "settings_btn_cleanduration")}, {"callback_data", "info:cleanduration"}},
+                {{"text", clean_duration}, {"callback_data", "set:cleanduration"}}
+            },
+            {
+                {{"text", lm.F(chat_id, "settings_btn_nothumb")}, {"callback_data", "info:nothumb"}},
+                {{"text", thumb_status}, {"callback_data", "set:nothumb"}}
+            },
+            {
+                {{"text", "📻 Autoplay"}, {"callback_data", "info:autoplay"}},
+                {{"text", autoplay_status}, {"callback_data", "set:autoplay"}}
+            },
+            {
+                {{"text", lm.F(chat_id, "settings_btn_lang")}, {"callback_data", "info:lang"}},
+                {{"text", lm.F(chat_id, "name")}, {"callback_data", "lang:select"}}
+            },
+            {
+                {{"text", lm.F(chat_id, "CLOSE_BTN")}, {"callback_data", "close"}}
             }
         }}
     };
@@ -270,12 +307,15 @@ nlohmann::json BotEngine::MakeLanguageMarkup() {
     return {
         {"inline_keyboard", {
             {
-                {{"text", "🇺🇸 English"}, {"callback_data", "lang_en"}},
-                {{"text", "🇮🇳 हिन्दी"}, {"callback_data", "lang_hi"}}
+                {{"text", "🇺🇸 English"}, {"callback_data", "lang:en"}},
+                {{"text", "🇮🇳 हिन्दी"}, {"callback_data", "lang:hi"}}
             },
             {
-                {{"text", "🇸🇦 العربية"}, {"callback_data", "lang_ar"}},
-                {{"text", "🇹🇷 Türkçe"}, {"callback_data", "lang_tr"}}
+                {{"text", "🇸🇦 العربية"}, {"callback_data", "lang:ar"}},
+                {{"text", "🇹🇷 Türkçe"}, {"callback_data", "lang:tr"}}
+            },
+            {
+                {{"text", "🔒 Close"}, {"callback_data", "close"}}
             }
         }}
     };
@@ -336,21 +376,23 @@ void BotEngine::ProcessMessage(const TgMessage& msg) {
         HandleHelp(msg);
     } else if (cmd == "/ping") {
         HandlePing(msg);
-    } else if (cmd == "/play" || cmd == "/p" || cmd == "/vplay" || cmd == "/cplay") {
+    } else if (cmd == "/play" || cmd == "/p" || cmd == "/vplay" || cmd == "/cplay" || cmd == "/vcplay" || cmd == "/cvplay") {
         HandlePlay(msg, args);
-    } else if (cmd == "/fplay" || cmd == "/playforce") {
+    } else if (cmd == "/fplay" || cmd == "/playforce" || cmd == "/fvplay" || cmd == "/vfplay" || cmd == "/vplayforce" ||
+               cmd == "/cfplay" || cmd == "/fcplay" || cmd == "/cforceplay" || cmd == "/cplayforce" ||
+               cmd == "/fvcplay" || cmd == "/fvcpay" || cmd == "/vcplayforce") {
         HandleFPlay(msg, args);
-    } else if (cmd == "/pause") {
+    } else if (cmd == "/pause" || cmd == "/cpause") {
         HandlePause(msg);
-    } else if (cmd == "/resume") {
+    } else if (cmd == "/resume" || cmd == "/cresume") {
         HandleResume(msg);
-    } else if (cmd == "/mute") {
+    } else if (cmd == "/mute" || cmd == "/cmute") {
         HandleMute(msg);
-    } else if (cmd == "/unmute") {
+    } else if (cmd == "/unmute" || cmd == "/cunmute") {
         HandleUnmute(msg);
     } else if (cmd == "/skip" || cmd == "/cskip") {
         HandleSkip(msg);
-    } else if (cmd == "/stop" || cmd == "/cstop" || cmd == "/end") {
+    } else if (cmd == "/stop" || cmd == "/cstop" || cmd == "/end" || cmd == "/cend") {
         HandleStop(msg);
     } else if (cmd == "/queue" || cmd == "/q" || cmd == "/cqueue") {
         HandleQueue(msg);
@@ -362,25 +404,25 @@ void BotEngine::ProcessMessage(const TgMessage& msg) {
         HandleMove(msg, args);
     } else if (cmd == "/restore" || cmd == "/crestore") {
         HandleRestore(msg);
-    } else if (cmd == "/pos" || cmd == "/position") {
+    } else if (cmd == "/pos" || cmd == "/position" || cmd == "/cpos" || cmd == "/cposition") {
         HandlePosition(msg);
-    } else if (cmd == "/seek") {
+    } else if (cmd == "/seek" || cmd == "/cseek") {
         HandleSeek(msg, args);
-    } else if (cmd == "/seekback") {
+    } else if (cmd == "/seekback" || cmd == "/cseekback") {
         HandleSeekBack(msg, args);
-    } else if (cmd == "/jump") {
+    } else if (cmd == "/jump" || cmd == "/cjump") {
         HandleJump(msg, args);
-    } else if (cmd == "/speed" || cmd == "/setspeed") {
+    } else if (cmd == "/speed" || cmd == "/setspeed" || cmd == "/speedup" || cmd == "/cspeed" || cmd == "/csetspeed" || cmd == "/cspeedup") {
         HandleSpeed(msg, args);
-    } else if (cmd == "/replay") {
+    } else if (cmd == "/replay" || cmd == "/creplay") {
         HandleReplay(msg);
     } else if (cmd == "/autoplay" || cmd == "/aplay") {
         HandleAutoplay(msg, args);
     } else if (cmd == "/nothumb" || cmd == "/nothumbs") {
         HandleNoThumb(msg, args);
-    } else if (cmd == "/loop" || cmd == "/setloop") {
+    } else if (cmd == "/loop" || cmd == "/setloop" || cmd == "/cloop" || cmd == "/csetloop") {
         HandleLoop(msg);
-    } else if (cmd == "/shuffle") {
+    } else if (cmd == "/shuffle" || cmd == "/cshuffle") {
         HandleShuffle(msg);
     } else if (cmd == "/settings") {
         HandleSettings(msg);
@@ -398,23 +440,23 @@ void BotEngine::ProcessMessage(const TgMessage& msg) {
         HandleAuthList(msg);
     } else if (cmd == "/sudolist" || cmd == "/sudoers" || cmd == "/listsudo") {
         HandleSudoList(msg);
-    } else if (cmd == "/addsudo" || cmd == "/addsudoer") {
+    } else if (cmd == "/addsudo" || cmd == "/addsudoer" || cmd == "/sudoadd") {
         HandleAddSudo(msg, args);
-    } else if (cmd == "/delsudo" || cmd == "/delsudoer") {
+    } else if (cmd == "/delsudo" || cmd == "/delsudoer" || cmd == "/sudodel" || cmd == "/remsudo" || cmd == "/rmsudo" || cmd == "/sudorem" || cmd == "/dropsudo" || cmd == "/unsudo") {
         HandleDelSudo(msg, args);
-    } else if (cmd == "/blockuser" || cmd == "/blacklistuser") {
+    } else if (cmd == "/blockuser" || cmd == "/blacklistuser" || cmd == "/blackuser" || cmd == "/bluser") {
         HandleBlockUser(msg, args);
-    } else if (cmd == "/unblockuser" || cmd == "/unblacklistuser") {
+    } else if (cmd == "/unblockuser" || cmd == "/unblacklistuser" || cmd == "/unbluser" || cmd == "/whitelistuser") {
         HandleUnblockUser(msg, args);
-    } else if (cmd == "/blockchat" || cmd == "/blacklistchat") {
+    } else if (cmd == "/blockchat" || cmd == "/blacklistchat" || cmd == "/blackchat" || cmd == "/blchat") {
         HandleBlockChat(msg, args);
-    } else if (cmd == "/unblockchat" || cmd == "/unblacklistchat") {
+    } else if (cmd == "/unblockchat" || cmd == "/unblacklistchat" || cmd == "/unblackchat" || cmd == "/whitechat" || cmd == "/unblchat") {
         HandleUnblockChat(msg, args);
     } else if (cmd == "/blacklisted" || cmd == "/blocked") {
         HandleBlacklisted(msg);
     } else if (cmd == "/speedtest" || cmd == "/spt") {
         HandleSpeedtest(msg);
-    } else if (cmd == "/active" || cmd == "/ac" || cmd == "/activevc") {
+    } else if (cmd == "/active" || cmd == "/ac" || cmd == "/activevc" || cmd == "/activevoice") {
         HandleActive(msg);
     } else if (cmd == "/logs" || cmd == "/log") {
         HandleLogs(msg);
@@ -422,10 +464,40 @@ void BotEngine::ProcessMessage(const TgMessage& msg) {
         HandleBug(msg, args);
     } else if (cmd == "/privacy") {
         HandlePrivacy(msg);
-    } else if (cmd == "/sh" || cmd == "/bash") {
+    } else if (cmd == "/sh" || cmd == "/bash" || cmd == "/shell") {
         HandleShell(msg, args);
     } else if (cmd == "/restart") {
         HandleRestart(msg);
+    } else if (cmd == "/playmode") {
+        HandlePlayMode(msg, args);
+    } else if (cmd == "/adminmode") {
+        HandleAdminMode(msg, args);
+    } else if (cmd == "/cmddelete" || cmd == "/commanddelete") {
+        HandleCmdDelete(msg, args);
+    } else if (cmd == "/cleanmode") {
+        HandleCleanMode(msg, args);
+    } else if (cmd == "/maintenance" || cmd == "/maint") {
+        HandleMaintenance(msg, args);
+    } else if (cmd == "/autoleave") {
+        HandleAutoLeave(msg, args);
+    } else if (cmd == "/logger") {
+        HandleLogger(msg, args);
+    } else if (cmd == "/reload" || cmd == "/creload") {
+        HandleReload(msg);
+    } else if (cmd == "/json") {
+        HandleJson(msg, args);
+    } else if (cmd == "/eval" || cmd == "/ev") {
+        HandleEval(msg, args);
+    } else if (cmd == "/channelplay" || cmd == "/setcplay") {
+        HandleSetCPlay(msg, args);
+    } else if (cmd == "/stream") {
+        HandleStream(msg, args);
+    } else if (cmd == "/streamstop") {
+        HandleStreamStop(msg);
+    } else if (cmd == "/streamstatus") {
+        HandleStreamStatus(msg);
+    } else if (cmd == "/setrtmp" || cmd == "/rtmp") {
+        HandleSetRTMP(msg, args);
     }
 }
 
@@ -973,7 +1045,13 @@ void BotEngine::HandleReplay(const TgMessage& msg) {
 }
 
 void BotEngine::HandleSettings(const TgMessage& msg) {
-    tg_->SendMessage(msg.chat.id, "⚙️ <b>Chat Settings:</b>", MakeSettingsMarkup(msg.chat.id));
+    auto& lm = LocalizationManager::Instance();
+    std::string title = msg.chat.title.empty() ? "Chat" : msg.chat.title;
+    std::string text = lm.F(msg.chat.id, "settings_main", {
+        {"title", title},
+        {"id", std::to_string(msg.chat.id)}
+    });
+    tg_->SendMessage(msg.chat.id, text, MakeSettingsMarkup(msg.chat.id));
 }
 
 void BotEngine::HandleLanguage(const TgMessage& msg, const std::string& args) {
@@ -1179,14 +1257,402 @@ void BotEngine::HandleBlacklist(const TgMessage& msg, const std::string& args) {
     HandleBlockUser(msg, args);
 }
 
+void BotEngine::HandlePlayMode(const TgMessage& msg, const std::string& args) {
+    auto& lm = LocalizationManager::Instance();
+    ChatConfig cfg = Database::Instance().GetChatConfig(msg.chat.id);
+    if (args.empty()) {
+        std::string status_key = (cfg.play_mode == "Admins") ? "playmode_status_admins" : "playmode_status_everyone";
+        std::string text = lm.F(msg.chat.id, "playmode_help", {
+            {"status", lm.F(msg.chat.id, status_key)}
+        });
+        tg_->SendMessage(msg.chat.id, text);
+        return;
+    }
+    std::string arg = args;
+    std::transform(arg.begin(), arg.end(), arg.begin(), ::tolower);
+    if (arg == "enable" || arg == "true" || arg == "1" || arg == "admin" || arg == "admins") {
+        cfg.play_mode = "Admins";
+        Database::Instance().SetChatConfig(msg.chat.id, cfg);
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "playmode_success_admins"));
+    } else if (arg == "disable" || arg == "false" || arg == "0" || arg == "everyone") {
+        cfg.play_mode = "Everyone";
+        Database::Instance().SetChatConfig(msg.chat.id, cfg);
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "playmode_success_everyone"));
+    } else {
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "invalid_bool"));
+    }
+}
+
+void BotEngine::HandleAdminMode(const TgMessage& msg, const std::string& args) {
+    auto& lm = LocalizationManager::Instance();
+    ChatConfig cfg = Database::Instance().GetChatConfig(msg.chat.id);
+    if (args.empty()) {
+        std::string status_key = "adminmode_status_adminauth";
+        if (cfg.admin_mode == "admin") status_key = "adminmode_status_admin";
+        else if (cfg.admin_mode == "everyone") status_key = "adminmode_status_everyone";
+        std::string text = lm.F(msg.chat.id, "adminmode_help", {
+            {"status", lm.F(msg.chat.id, status_key)}
+        });
+        tg_->SendMessage(msg.chat.id, text);
+        return;
+    }
+    std::string arg = args;
+    std::transform(arg.begin(), arg.end(), arg.begin(), ::tolower);
+    if (arg == "admin" || arg == "admins" || arg == "adminonly" || arg == "adminsonly") {
+        cfg.admin_mode = "admin";
+        Database::Instance().SetChatConfig(msg.chat.id, cfg);
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "adminmode_updated", {
+            {"status", lm.F(msg.chat.id, "adminmode_status_admin")}
+        }));
+    } else if (arg == "adminauth" || arg == "auth" || arg == "dj" || arg == "admin_auth") {
+        cfg.admin_mode = "adminauth";
+        Database::Instance().SetChatConfig(msg.chat.id, cfg);
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "adminmode_updated", {
+            {"status", lm.F(msg.chat.id, "adminmode_status_adminauth")}
+        }));
+    } else if (arg == "everyone" || arg == "all") {
+        cfg.admin_mode = "everyone";
+        Database::Instance().SetChatConfig(msg.chat.id, cfg);
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "adminmode_updated", {
+            {"status", lm.F(msg.chat.id, "adminmode_status_everyone")}
+        }));
+    } else {
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "adminmode_invalid"));
+    }
+}
+
+void BotEngine::HandleCmdDelete(const TgMessage& msg, const std::string& args) {
+    auto& lm = LocalizationManager::Instance();
+    ChatConfig cfg = Database::Instance().GetChatConfig(msg.chat.id);
+    if (args.empty()) {
+        std::string action = cfg.command_delete ? lm.F(msg.chat.id, "enabled") : lm.F(msg.chat.id, "disabled");
+        std::string text = lm.F(msg.chat.id, "cmddelete_status", {
+            {"cmd", "/cmddelete"},
+            {"action", action}
+        });
+        tg_->SendMessage(msg.chat.id, text);
+        return;
+    }
+    std::string arg = args;
+    std::transform(arg.begin(), arg.end(), arg.begin(), ::tolower);
+    if (arg == "enable" || arg == "true" || arg == "1" || arg == "yes") {
+        cfg.command_delete = true;
+        Database::Instance().SetChatConfig(msg.chat.id, cfg);
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "cmddelete_updated", {
+            {"action", lm.F(msg.chat.id, "enabled")}
+        }));
+    } else if (arg == "disable" || arg == "false" || arg == "0" || arg == "no") {
+        cfg.command_delete = false;
+        Database::Instance().SetChatConfig(msg.chat.id, cfg);
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "cmddelete_updated", {
+            {"action", lm.F(msg.chat.id, "disabled")}
+        }));
+    } else {
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "invalid_bool"));
+    }
+}
+
+void BotEngine::HandleCleanMode(const TgMessage& msg, const std::string& args) {
+    auto& lm = LocalizationManager::Instance();
+    ChatConfig cfg = Database::Instance().GetChatConfig(msg.chat.id);
+    if (args.empty()) {
+        std::string action = cfg.clean_mode ? lm.F(msg.chat.id, "enabled") : lm.F(msg.chat.id, "disabled");
+        std::string text = lm.F(msg.chat.id, "cleanmode_status", {
+            {"action", action},
+            {"duration", std::to_string(cfg.clean_mode_duration)}
+        }) + "\n\n" + lm.F(msg.chat.id, "cleanmode_hint");
+        tg_->SendMessage(msg.chat.id, text);
+        return;
+    }
+    std::string arg = args;
+    std::transform(arg.begin(), arg.end(), arg.begin(), ::tolower);
+    if (arg == "enable" || arg == "true" || arg == "1" || arg == "yes") {
+        cfg.clean_mode = true;
+        Database::Instance().SetChatConfig(msg.chat.id, cfg);
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "cleanmode_updated", {
+            {"action", lm.F(msg.chat.id, "enabled")}
+        }));
+    } else if (arg == "disable" || arg == "false" || arg == "0" || arg == "no") {
+        cfg.clean_mode = false;
+        Database::Instance().SetChatConfig(msg.chat.id, cfg);
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "cleanmode_updated", {
+            {"action", lm.F(msg.chat.id, "disabled")}
+        }));
+    } else {
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "invalid_bool"));
+    }
+}
+
+void BotEngine::HandleMaintenance(const TgMessage& msg, const std::string& args) {
+    if (msg.from.id != config_.owner_id) return;
+    auto& lm = LocalizationManager::Instance();
+    bool current = Database::Instance().IsMaintenanceEnabled();
+    std::string current_reason = Database::Instance().GetMaintenanceReason();
+    if (args.empty()) {
+        std::string status = current ? lm.F(msg.chat.id, "enabled") : lm.F(msg.chat.id, "disabled");
+        if (current && !current_reason.empty()) {
+            status = lm.F(msg.chat.id, "enabled_with_reason", {{"reason", current_reason}});
+        }
+        std::string text = lm.F(msg.chat.id, "maint_usage", {
+            {"cmd", "/maintenance"},
+            {"status", status}
+        });
+        tg_->SendMessage(msg.chat.id, text);
+        return;
+    }
+    std::stringstream ss(args);
+    std::string opt;
+    ss >> opt;
+    std::string reason;
+    std::getline(ss, reason);
+    auto start = reason.find_first_not_of(" \t");
+    if (start != std::string::npos) reason = reason.substr(start);
+    else reason = "";
+
+    std::transform(opt.begin(), opt.end(), opt.begin(), ::tolower);
+    if (opt == "enable" || opt == "true" || opt == "1" || opt == "on") {
+        Database::Instance().SetMaintenance(true, reason);
+        if (!reason.empty()) {
+            tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "maint_enabled_reason", {{"reason", reason}}));
+        } else {
+            tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "maint_enabled"));
+        }
+    } else if (opt == "disable" || opt == "false" || opt == "0" || opt == "off") {
+        Database::Instance().SetMaintenance(false, "");
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "maint_disabled"));
+    } else {
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "invalid_bool"));
+    }
+}
+
+void BotEngine::HandleAutoLeave(const TgMessage& msg, const std::string& args) {
+    if (!Database::Instance().IsSudo(msg.from.id, config_.owner_id)) return;
+    auto& lm = LocalizationManager::Instance();
+    bool current = Database::Instance().IsAutoLeaveEnabled();
+    if (args.empty()) {
+        std::string action = current ? lm.F(msg.chat.id, "enabled") : lm.F(msg.chat.id, "disabled");
+        std::string text = lm.F(msg.chat.id, "autoleave_status", {
+            {"cmd", "/autoleave"},
+            {"action", action}
+        });
+        tg_->SendMessage(msg.chat.id, text);
+        return;
+    }
+    std::string arg = args;
+    std::transform(arg.begin(), arg.end(), arg.begin(), ::tolower);
+    if (arg == "enable" || arg == "true" || arg == "1") {
+        if (current) {
+            tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "autoleave_already", {{"action", lm.F(msg.chat.id, "enabled")}}));
+            return;
+        }
+        Database::Instance().SetAutoLeaveEnabled(true);
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "autoleave_updated", {{"action", lm.F(msg.chat.id, "enabled")}}));
+    } else if (arg == "disable" || arg == "false" || arg == "0") {
+        if (!current) {
+            tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "autoleave_already", {{"action", lm.F(msg.chat.id, "disabled")}}));
+            return;
+        }
+        Database::Instance().SetAutoLeaveEnabled(false);
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "autoleave_updated", {{"action", lm.F(msg.chat.id, "disabled")}}));
+    } else {
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "invalid_bool"));
+    }
+}
+
+void BotEngine::HandleLogger(const TgMessage& msg, const std::string& args) {
+    if (!Database::Instance().IsSudo(msg.from.id, config_.owner_id)) return;
+    auto& lm = LocalizationManager::Instance();
+    bool current = Database::Instance().IsLoggerEnabled();
+    if (args.empty()) {
+        std::string action = current ? lm.F(msg.chat.id, "enabled") : lm.F(msg.chat.id, "disabled");
+        std::string status = lm.F(msg.chat.id, "logger_status", {{"action", action}});
+        std::string text = lm.F(msg.chat.id, "logger_usage", {
+            {"cmd", "/logger"},
+            {"status", status}
+        });
+        tg_->SendMessage(msg.chat.id, text);
+        return;
+    }
+    std::string arg = args;
+    std::transform(arg.begin(), arg.end(), arg.begin(), ::tolower);
+    if (arg == "enable" || arg == "true" || arg == "1") {
+        if (current) {
+            tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "logger_already", {{"action", lm.F(msg.chat.id, "enabled")}}));
+            return;
+        }
+        Database::Instance().SetLoggerEnabled(true);
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "logger_updated", {{"action", lm.F(msg.chat.id, "enabled")}}));
+    } else if (arg == "disable" || arg == "false" || arg == "0") {
+        if (!current) {
+            tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "logger_already", {{"action", lm.F(msg.chat.id, "disabled")}}));
+            return;
+        }
+        Database::Instance().SetLoggerEnabled(false);
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "logger_updated", {{"action", lm.F(msg.chat.id, "disabled")}}));
+    } else {
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "invalid_bool"));
+    }
+}
+
+void BotEngine::HandleReload(const TgMessage& msg) {
+    auto& lm = LocalizationManager::Instance();
+    int wait_msg = tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "reload_start"));
+    std::string summary = lm.F(msg.chat.id, "reload_admin_cache_ok") + "\n";
+    bool vc_active = AudioEngine::Instance().IsPlaying(msg.chat.id);
+    if (vc_active) {
+        summary += lm.F(msg.chat.id, "reload_voice_active") + "\n";
+    } else {
+        summary += lm.F(msg.chat.id, "reload_voice_inactive") + "\n";
+    }
+    summary += lm.F(msg.chat.id, "reload_assistant_present") + "\n";
+    std::string final_text = lm.F(msg.chat.id, "reload_done", {{"summary", summary}});
+    if (wait_msg > 0) {
+        tg_->EditMessageText(msg.chat.id, wait_msg, final_text);
+    } else {
+        tg_->SendMessage(msg.chat.id, final_text);
+    }
+}
+
+void BotEngine::HandleJson(const TgMessage& msg, const std::string& args) {
+    (void)args;
+    nlohmann::json j;
+    j["message_id"] = msg.message_id;
+    j["from"] = {{"id", msg.from.id}, {"first_name", msg.from.first_name}, {"username", msg.from.username}};
+    j["chat"] = {{"id", msg.chat.id}, {"type", msg.chat.type}, {"title", msg.chat.title}};
+    j["text"] = msg.text;
+    std::string json_str = j.dump(2);
+    if (json_str.size() > 4000) {
+        json_str = json_str.substr(0, 4000) + "\n...";
+    }
+    tg_->SendMessage(msg.chat.id, "<pre><code class=\"language-json\">" + json_str + "</code></pre>");
+}
+
+void BotEngine::HandleEval(const TgMessage& msg, const std::string& args) {
+    if (msg.from.id != config_.owner_id) return;
+    if (args.empty()) {
+        tg_->SendMessage(msg.chat.id, "<b>🧩 Eval Help</b>\n\n<code>/eval &lt;command/code&gt;</code>");
+        return;
+    }
+    HandleShell(msg, args);
+}
+
+void BotEngine::HandleSetCPlay(const TgMessage& msg, const std::string& args) {
+    if (args.empty()) {
+        tg_->SendMessage(msg.chat.id, "ℹ️ <b>Usage:</b> <code>/setcplay [channel_id|disable]</code>");
+        return;
+    }
+    ChatConfig cfg = Database::Instance().GetChatConfig(msg.chat.id);
+    if (args == "disable" || args == "off") {
+        cfg.channel_play_id = 0;
+        Database::Instance().SetChatConfig(msg.chat.id, cfg);
+        tg_->SendMessage(msg.chat.id, "✅ Channel play mode disabled for this chat.");
+        return;
+    }
+    try {
+        int64_t target_id = std::stoll(args);
+        cfg.channel_play_id = target_id;
+        Database::Instance().SetChatConfig(msg.chat.id, cfg);
+        tg_->SendMessage(msg.chat.id, "✅ Linked channel <code>" + std::to_string(target_id) + "</code> for channel play.");
+    } catch (...) {
+        tg_->SendMessage(msg.chat.id, "❌ Invalid channel ID provided.");
+    }
+}
+
+void BotEngine::HandleSetRTMP(const TgMessage& msg, const std::string& args) {
+    if (msg.chat.type != "private" && !msg.chat.type.empty()) {
+        auto& lm = LocalizationManager::Instance();
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "rtmp_dm_only"));
+        return;
+    }
+    std::stringstream ss(args);
+    std::string cid_str, raw_url;
+    ss >> cid_str >> raw_url;
+    if (cid_str.empty() || raw_url.empty()) {
+        auto& lm = LocalizationManager::Instance();
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "rtmp_setup_usage"));
+        return;
+    }
+    auto idx = raw_url.rfind('/');
+    if (idx == std::string::npos || idx == 0 || idx == raw_url.length() - 1) {
+        tg_->SendMessage(msg.chat.id, "❌ Invalid RTMP format. Expected: <code>rtmp://url/stream_key</code>");
+        return;
+    }
+    try {
+        int64_t cid = std::stoll(cid_str);
+        std::string url = raw_url.substr(0, idx + 1);
+        std::string key = raw_url.substr(idx + 1);
+        ChatConfig cfg = Database::Instance().GetChatConfig(cid);
+        cfg.rtmp_url = url;
+        cfg.rtmp_key = key;
+        Database::Instance().SetChatConfig(cid, cfg);
+        auto& lm = LocalizationManager::Instance();
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "rtmp_configured_success", {{"chat_id", std::to_string(cid)}}));
+    } catch (...) {
+        auto& lm = LocalizationManager::Instance();
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "rtmp_invalid_chat_id"));
+    }
+}
+
+void BotEngine::HandleStream(const TgMessage& msg, const std::string& args) {
+    ChatConfig cfg = Database::Instance().GetChatConfig(msg.chat.id);
+    auto& lm = LocalizationManager::Instance();
+    if (cfg.rtmp_url.empty() || cfg.rtmp_key.empty()) {
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "rtmp_not_configured", {{"cmd", "/setrtmp"}}));
+        return;
+    }
+    if (args.empty()) {
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "no_song_query", {{"cmd", "/stream"}}));
+        return;
+    }
+    HandlePlay(msg, args);
+}
+
+void BotEngine::HandleStreamStop(const TgMessage& msg) {
+    if (!AudioEngine::Instance().IsPlaying(msg.chat.id)) {
+        auto& lm = LocalizationManager::Instance();
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "room_no_active"));
+        return;
+    }
+    AudioEngine::Instance().StopPlayback(msg.chat.id);
+    auto& lm = LocalizationManager::Instance();
+    std::string user_name = msg.from.first_name.empty() ? "User" : msg.from.first_name;
+    std::string user_mention = "<a href=\"tg://user?id=" + std::to_string(msg.from.id) + "\">" + user_name + "</a>";
+    tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "rtmp_stopped", {{"user", user_mention}}));
+}
+
+void BotEngine::HandleStreamStatus(const TgMessage& msg) {
+    ChatConfig cfg = Database::Instance().GetChatConfig(msg.chat.id);
+    auto& lm = LocalizationManager::Instance();
+    if (cfg.rtmp_url.empty()) {
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "rtmp_not_configured", {{"cmd", "/setrtmp"}}));
+        return;
+    }
+    if (!AudioEngine::Instance().IsPlaying(msg.chat.id)) {
+        tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "room_no_active"));
+        return;
+    }
+    int64_t pos = AudioEngine::Instance().GetPosition(msg.chat.id);
+    int m = pos / 60;
+    int s = pos % 60;
+    char pos_buf[16];
+    snprintf(pos_buf, sizeof(pos_buf), "%02d:%02d", m, s);
+    tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "rtmp_status_playing", {{"position", pos_buf}}));
+}
+
 void BotEngine::ProcessCallback(const TgCallbackQuery& cb) {
     auto& lm = LocalizationManager::Instance();
     int64_t chat_id = cb.message.chat.id;
     int msg_id = cb.message.message_id;
     std::string data = cb.data;
 
-    if (data == "close") {
+    if (data == "close" || data == "cancel") {
         tg_->AnswerCallbackQuery(cb.id, "");
+        tg_->DeleteMessage(chat_id, msg_id);
+        return;
+    }
+
+    if (data == "bcast_cancel") {
+        tg_->AnswerCallbackQuery(cb.id, "Broadcast cancelled");
         tg_->DeleteMessage(chat_id, msg_id);
         return;
     }
@@ -1346,6 +1812,77 @@ void BotEngine::ProcessCallback(const TgCallbackQuery& cb) {
         return;
     }
 
+    if (data.rfind("info:", 0) == 0) {
+        std::string action = data.substr(5);
+        tg_->AnswerCallbackQuery(cb.id, lm.F(chat_id, "settings_info_" + action), true);
+        return;
+    }
+
+    if (data.rfind("set:", 0) == 0) {
+        std::string action = data.substr(4);
+        ChatConfig cfg = Database::Instance().GetChatConfig(chat_id);
+        if (action == "adminmode") {
+            if (cfg.admin_mode == "admin") cfg.admin_mode = "adminauth";
+            else if (cfg.admin_mode == "adminauth") cfg.admin_mode = "everyone";
+            else cfg.admin_mode = "admin";
+        } else if (action == "playmode") {
+            cfg.play_mode = (cfg.play_mode == "Admins") ? "Everyone" : "Admins";
+        } else if (action == "cmddelete") {
+            cfg.command_delete = !cfg.command_delete;
+        } else if (action == "cleanmode") {
+            cfg.clean_mode = !cfg.clean_mode;
+        } else if (action == "cleanduration") {
+            if (cfg.clean_mode_duration == 5) cfg.clean_mode_duration = 10;
+            else if (cfg.clean_mode_duration == 10) cfg.clean_mode_duration = 15;
+            else if (cfg.clean_mode_duration == 15) cfg.clean_mode_duration = 30;
+            else cfg.clean_mode_duration = 5;
+        } else if (action == "nothumb") {
+            cfg.show_thumbnails = !cfg.show_thumbnails;
+        } else if (action == "autoplay") {
+            cfg.autoplay = !cfg.autoplay;
+        }
+        Database::Instance().SetChatConfig(chat_id, cfg);
+        tg_->AnswerCallbackQuery(cb.id, lm.F(chat_id, "settings_updated"));
+        std::string title = cb.message.chat.title.empty() ? "Chat" : cb.message.chat.title;
+        std::string text = lm.F(chat_id, "settings_main", {
+            {"title", title},
+            {"id", std::to_string(chat_id)}
+        });
+        tg_->EditMessageText(chat_id, msg_id, text, MakeSettingsMarkup(chat_id));
+        return;
+    }
+
+    if (data == "lang:select" || data == "set_lang") {
+        tg_->AnswerCallbackQuery(cb.id, "");
+        tg_->EditMessageText(chat_id, msg_id, "🌐 <b>Select Bot Language:</b>", MakeLanguageMarkup());
+        return;
+    }
+
+    if (data.rfind("lang_", 0) == 0 || data.rfind("lang:", 0) == 0) {
+        std::string selected_lang = data.substr(5);
+        LocalizationManager::Instance().SetChatLang(chat_id, selected_lang);
+        ChatConfig cfg = Database::Instance().GetChatConfig(chat_id);
+        cfg.language = selected_lang;
+        Database::Instance().SetChatConfig(chat_id, cfg);
+        tg_->AnswerCallbackQuery(cb.id, "Language changed to " + selected_lang);
+        std::string title = cb.message.chat.title.empty() ? "Chat" : cb.message.chat.title;
+        std::string text = lm.F(chat_id, "settings_main", {
+            {"title", title},
+            {"id", std::to_string(chat_id)}
+        });
+        tg_->EditMessageText(chat_id, msg_id, text, MakeSettingsMarkup(chat_id));
+        return;
+    }
+
+    if (data == "rtmp_stop") {
+        AudioEngine::Instance().StopPlayback(chat_id);
+        tg_->AnswerCallbackQuery(cb.id, "RTMP Stream Stopped ⏹");
+        std::string user_name = cb.from.first_name.empty() ? "User" : cb.from.first_name;
+        std::string user_mention = "<a href=\"tg://user?id=" + std::to_string(cb.from.id) + "\">" + user_name + "</a>";
+        tg_->EditMessageText(chat_id, msg_id, lm.F(chat_id, "rtmp_stopped", {{"user", user_mention}}));
+        return;
+    }
+
     if (data == "set_clean") {
         ChatConfig cfg = Database::Instance().GetChatConfig(chat_id);
         cfg.clean_mode = !cfg.clean_mode;
@@ -1369,23 +1906,6 @@ void BotEngine::ProcessCallback(const TgCallbackQuery& cb) {
         cfg.show_thumbnails = !cfg.show_thumbnails;
         Database::Instance().SetChatConfig(chat_id, cfg);
         tg_->AnswerCallbackQuery(cb.id, cfg.show_thumbnails ? "Thumbnails ON" : "Thumbnails OFF");
-        tg_->EditMessageText(chat_id, msg_id, "⚙️ <b>Chat Settings:</b>", MakeSettingsMarkup(chat_id));
-        return;
-    }
-
-    if (data == "set_lang") {
-        tg_->AnswerCallbackQuery(cb.id, "");
-        tg_->EditMessageText(chat_id, msg_id, "🌐 <b>Select Bot Language:</b>", MakeLanguageMarkup());
-        return;
-    }
-
-    if (data.rfind("lang_", 0) == 0) {
-        std::string selected_lang = data.substr(5);
-        LocalizationManager::Instance().SetChatLang(chat_id, selected_lang);
-        ChatConfig cfg = Database::Instance().GetChatConfig(chat_id);
-        cfg.language = selected_lang;
-        Database::Instance().SetChatConfig(chat_id, cfg);
-        tg_->AnswerCallbackQuery(cb.id, "Language changed to " + selected_lang);
         tg_->EditMessageText(chat_id, msg_id, "⚙️ <b>Chat Settings:</b>", MakeSettingsMarkup(chat_id));
         return;
     }

@@ -196,12 +196,15 @@ bool TelegramClient::DeleteMessage(int64_t chat_id, int message_id) {
     }
 }
 
-bool TelegramClient::AnswerCallbackQuery(const std::string& callback_query_id, const std::string& text) {
+bool TelegramClient::AnswerCallbackQuery(const std::string& callback_query_id, const std::string& text, bool show_alert) {
     nlohmann::json payload = {
         {"callback_query_id", callback_query_id}
     };
     if (!text.empty()) {
         payload["text"] = text;
+    }
+    if (show_alert) {
+        payload["show_alert"] = true;
     }
     std::string res = PerformRequest("answerCallbackQuery", payload);
     return !res.empty();

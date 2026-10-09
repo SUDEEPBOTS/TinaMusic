@@ -52,7 +52,7 @@ public:
     int SendMessage(int64_t chat_id, const std::string& text, const nlohmann::json& markup = nullptr);
     bool EditMessageText(int64_t chat_id, int message_id, const std::string& text, const nlohmann::json& markup = nullptr);
     bool DeleteMessage(int64_t chat_id, int message_id);
-    bool AnswerCallbackQuery(const std::string& callback_query_id, const std::string& text = "");
+    bool AnswerCallbackQuery(const std::string& callback_query_id, const std::string& text = "", bool show_alert = false);
 
 private:
     std::string bot_token_;

@@ -219,6 +219,10 @@ bool AudioEngine::IsActive(int64_t chat_id) {
     return it != sessions_.end() && it->second->IsRunning();
 }
 
+bool AudioEngine::IsPlaying(int64_t chat_id) {
+    return IsActive(chat_id);
+}
+
 int64_t AudioEngine::GetPosition(int64_t chat_id) {
     std::lock_guard<std::mutex> lock(sessions_mutex_);
     auto it = sessions_.find(chat_id);

@@ -13,6 +13,12 @@ struct ChatConfig {
     std::string language{"en"};
     bool autoplay{false};
     bool show_thumbnails{true};
+    bool command_delete{false};
+    std::string admin_mode{"adminauth"};
+    int clean_mode_duration{15};
+    int64_t channel_play_id{0};
+    std::string rtmp_url{""};
+    std::string rtmp_key{""};
     std::unordered_set<int64_t> auth_users;
 };
 
@@ -30,6 +36,16 @@ public:
 
     bool IsThumbnailsEnabled(int64_t chat_id);
     void SetThumbnails(int64_t chat_id, bool enabled);
+
+    bool IsMaintenanceEnabled();
+    std::string GetMaintenanceReason();
+    void SetMaintenance(bool enabled, const std::string& reason);
+
+    bool IsLoggerEnabled();
+    void SetLoggerEnabled(bool enabled);
+
+    bool IsAutoLeaveEnabled();
+    void SetAutoLeaveEnabled(bool enabled);
 
     void AddSudo(int64_t user_id);
     void RemoveSudo(int64_t user_id);
@@ -59,5 +75,9 @@ private:
     std::unordered_map<int64_t, std::string> blacklisted_;
     std::unordered_set<int64_t> served_chats_;
     int64_t total_plays_{0};
+    bool maintenance_mode_{false};
+    std::string maintenance_reason_{""};
+    bool logger_enabled_{false};
+    bool autoleave_enabled_{false};
     std::mutex db_mutex_;
 };

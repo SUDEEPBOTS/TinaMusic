@@ -21,6 +21,10 @@ void Database::SaveToDisk() {
     root["total_plays"] = total_plays_;
     root["sudo_users"] = sudo_users_;
     root["blacklisted"] = blacklisted_;
+    root["maintenance_mode"] = maintenance_mode_;
+    root["maintenance_reason"] = maintenance_reason_;
+    root["logger_enabled"] = logger_enabled_;
+    root["autoleave_enabled"] = autoleave_enabled_;
 
     nlohmann::json chatsJson = nlohmann::json::object();
     for (const auto& [cid, cfg] : chat_configs_) {
@@ -31,6 +35,12 @@ void Database::SaveToDisk() {
         c["language"] = cfg.language;
         c["autoplay"] = cfg.autoplay;
         c["show_thumbnails"] = cfg.show_thumbnails;
+        c["command_delete"] = cfg.command_delete;
+        c["admin_mode"] = cfg.admin_mode;
+        c["clean_mode_duration"] = cfg.clean_mode_duration;
+        c["channel_play_id"] = cfg.channel_play_id;
+        c["rtmp_url"] = cfg.rtmp_url;
+        c["rtmp_key"] = cfg.rtmp_key;
         c["auth_users"] = cfg.auth_users;
         chatsJson[std::to_string(cid)] = c;
     }
@@ -53,6 +63,10 @@ void Database::LoadFromDisk() {
     try {
         nlohmann::json root = nlohmann::json::parse(ifs);
         total_plays_ = root.value("total_plays", 0LL);
+        maintenance_mode_ = root.value("maintenance_mode", false);
+        maintenance_reason_ = root.value("maintenance_reason", "");
+        logger_enabled_ = root.value("logger_enabled", false);
+        autoleave_enabled_ = root.value("autoleave_enabled", false);
 
         if (root.contains("sudo_users")) {
             sudo_users_ = root["sudo_users"].get<std::unordered_set<int64_t>>();
@@ -73,6 +87,12 @@ void Database::LoadFromDisk() {
                 cfg.language = val.value("language", "en");
                 cfg.autoplay = val.value("autoplay", false);
                 cfg.show_thumbnails = val.value("show_thumbnails", true);
+                cfg.command_delete = val.value("command_delete", false);
+                cfg.admin_mode = val.value("admin_mode", "adminauth");
+                cfg.clean_mode_duration = val.value("clean_mode_duration", 15);
+                cfg.channel_play_id = val.value("channel_play_id", 0LL);
+                cfg.rtmp_url = val.value("rtmp_url", "");
+                cfg.rtmp_key = val.value("rtmp_key", "");
                 if (val.contains("auth_users")) {
                     cfg.auth_users = val["auth_users"].get<std::unordered_set<int64_t>>();
                 }
@@ -119,6 +139,45 @@ void Database::SetThumbnails(int64_t chat_id, bool enabled) {
     ChatConfig cfg = GetChatConfig(chat_id);
     cfg.show_thumbnails = enabled;
     SetChatConfig(chat_id, cfg);
+}
+
+bool Database::IsMaintenanceEnabled() {
+    std::lock_guard<std::mutex> lock(db_mutex_);
+    return maintenance_mode_;
+}
+
+std::string Database::GetMaintenanceReason() {
+    std::lock_guard<std::mutex> lock(db_mutex_);
+    return maintenance_reason_;
+}
+
+void Database::SetMaintenance(bool enabled, const std::string& reason) {
+    std::lock_guard<std::mutex> lock(db_mutex_);
+    maintenance_mode_ = enabled;
+    maintenance_reason_ = reason;
+    SaveToDisk();
+}
+
+bool Database::IsLoggerEnabled() {
+    std::lock_guard<std::mutex> lock(db_mutex_);
+    return logger_enabled_;
+}
+
+void Database::SetLoggerEnabled(bool enabled) {
+    std::lock_guard<std::mutex> lock(db_mutex_);
+    logger_enabled_ = enabled;
+    SaveToDisk();
+}
+
+bool Database::IsAutoLeaveEnabled() {
+    std::lock_guard<std::mutex> lock(db_mutex_);
+    return autoleave_enabled_;
+}
+
+void Database::SetAutoLeaveEnabled(bool enabled) {
+    std::lock_guard<std::mutex> lock(db_mutex_);
+    autoleave_enabled_ = enabled;
+    SaveToDisk();
 }
 
 void Database::AddSudo(int64_t user_id) {

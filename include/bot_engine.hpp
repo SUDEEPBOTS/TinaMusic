@@ -70,6 +70,21 @@ private:
     void HandleRestart(const TgMessage& msg);
     void HandleAutoplay(const TgMessage& msg, const std::string& args);
     void HandleNoThumb(const TgMessage& msg, const std::string& args);
+    void HandlePlayMode(const TgMessage& msg, const std::string& args);
+    void HandleAdminMode(const TgMessage& msg, const std::string& args);
+    void HandleCmdDelete(const TgMessage& msg, const std::string& args);
+    void HandleCleanMode(const TgMessage& msg, const std::string& args);
+    void HandleMaintenance(const TgMessage& msg, const std::string& args);
+    void HandleAutoLeave(const TgMessage& msg, const std::string& args);
+    void HandleLogger(const TgMessage& msg, const std::string& args);
+    void HandleReload(const TgMessage& msg);
+    void HandleJson(const TgMessage& msg, const std::string& args);
+    void HandleEval(const TgMessage& msg, const std::string& args);
+    void HandleSetCPlay(const TgMessage& msg, const std::string& args);
+    void HandleStream(const TgMessage& msg, const std::string& args);
+    void HandleStreamStop(const TgMessage& msg);
+    void HandleStreamStatus(const TgMessage& msg);
+    void HandleSetRTMP(const TgMessage& msg, const std::string& args);
 
     nlohmann::json MakeStartMarkup(int64_t chat_id);
     nlohmann::json MakeHelpMarkup(int64_t chat_id);

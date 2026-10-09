@@ -55,6 +55,7 @@ public:
     bool SeekPlayback(int64_t chat_id, int64_t seconds);
     bool SetPlaybackSpeed(int64_t chat_id, double speed);
     bool IsActive(int64_t chat_id);
+    bool IsPlaying(int64_t chat_id);
     int64_t GetPosition(int64_t chat_id);
     std::vector<int64_t> GetActiveChats();
 
