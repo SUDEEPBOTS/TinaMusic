@@ -27,7 +27,7 @@ void ConfigLoader::ParseEnvFile(const std::string& path) {
             if (!val.empty() && (val.front() == '"' || val.front() == '\'') && val.front() == val.back()) {
                 val = val.substr(1, val.length() - 2);
             }
-            setenv(key.c_str(), val.c_str(), 0);
+            setenv(key.c_str(), val.c_str(), 1);
         }
     }
 }

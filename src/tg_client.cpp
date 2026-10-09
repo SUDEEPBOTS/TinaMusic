@@ -8,7 +8,6 @@ TelegramClient::TelegramClient(const std::string& bot_token)
 }
 
 TelegramClient::~TelegramClient() {
-    curl_global_cleanup();
 }
 
 size_t TelegramClient::WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
