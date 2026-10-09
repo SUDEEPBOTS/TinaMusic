@@ -324,7 +324,7 @@ help_main: |
   • 👑 <b>σᴡηєꝛ</b> ➜ <i>ʙσᴛ ᴍᴧηᴧɢєᴍєηᴛ &amp; sʏsᴛєᴍ</i>
   • ⚡ <b>sᴜᴅσєꝛs</b> ➜ <i>ᴧᴅᴠᴧηᴄєᴅ ʙσᴛ ᴄσηᴛꝛσʟs</i>
 
-  💡 <b>ᴛɪᴘ:</b> <spoiler>ᴜsᴇ /play &lt;song&gt; ᴛᴏ sᴛᴀʀᴛ ɪɴ ᴠᴄ</spoiler></blockquote>
+  💡 <b>ᴛɪᴘ:</b> <tg-spoiler>ᴜsᴇ /play &lt;song&gt; ᴛᴏ sᴛᴀʀᴛ ɪɴ ᴠᴄ</tg-spoiler></blockquote>
 
 jump_no_active: "⚠️ No active track to jump within."
 jump_usage: "⚠️ Please provide seconds.\nExample: <code>{cmd} 120</code>"
@@ -448,7 +448,7 @@ no_song_query: |
   • <b>ᴜsᴧɢє:</b> <code>{cmd} &lt;song name&gt;</code>
   • <b>єxᴧᴍᴘʟє:</b> <code>{cmd} closer</code>
 
-  💡 <b>ᴛɪᴘ:</b> <spoiler>ʏᴏᴜ ᴄᴀɴ ᴀʟsᴏ sᴇɴᴅ ʏᴏᴜᴛᴜʙᴇ/sᴘᴏᴛɪꜰʏ ʟɪɴᴋs</spoiler></blockquote>
+  💡 <b>ᴛɪᴘ:</b> <tg-spoiler>ʏᴏᴜ ᴄᴀɴ ᴀʟsᴏ sᴇɴᴅ ʏᴏᴜᴛᴜʙᴇ/sᴘᴏᴛɪꜰʏ ʟɪɴᴋs</tg-spoiler></blockquote>
 
 no_song_found: "<blockquote>❌ <b><u>ɴσ ᴛꝛᴧᴄᴋs ғσυηᴅ</u></b>\n\n<i>ᴄσυʟᴅ ησᴛ ғɪηᴅ ᴧηʏ ᴍᴧᴛᴄʜɪηɢ ꝛєsᴜʟᴛs. ᴘʟєᴧsє ᴛꝛʏ ᴧησᴛʜєꝛ ǫᴜєꝛʏ!</i></blockquote>"
 
@@ -546,8 +546,8 @@ ping_result: |
   • 💾 <b>ᴅɪsᴋ ᴜsᴧɢє:</b> <code>{disk_usage}</code>
   • 🤖 <b>ʙσᴛ:</b> {bot}
 
-  💡 <b>sᴛᴧᴛᴜs:</b> <spoiler>🟢 ᴀʟʟ sʏsᴛᴇᴍs ᴏᴘᴇʀᴀᴛɪᴏɴᴀʟ</spoiler>
-  🚀 <b>ᴘɪηɢ:</b> <spoiler>⚡ {latency}ms (ᴜʟᴛʀᴀ-ꜰᴀsᴛ)</spoiler></blockquote>
+  💡 <b>sᴛᴧᴛᴜs:</b> <tg-spoiler>🟢 ᴀʟʟ sʏsᴛᴇᴍs ᴏᴘᴇʀᴀᴛɪᴏɴᴀʟ</tg-spoiler>
+  🚀 <b>ᴘɪηɢ:</b> <tg-spoiler>⚡ {latency}ms (ᴜʟᴛʀᴀ-ꜰᴀsᴛ)</tg-spoiler></blockquote>
   
 
 position_now: |
@@ -927,18 +927,18 @@ start_private: |
 
   ✨ <b><u>ᴧʙσυᴛ ᴍє</u>:</b>
   • ᴧ ᴘσᴡєꝛғᴜʟ & ʜɪɢʜ-ǫᴜᴧʟɪᴛʏ ᴛєʟєɢꝛᴧᴍ ᴍᴜsɪᴄ sᴛꝛєᴧᴍɪηɢ ʙσᴛ.
-  • <s>ʟᴧɢɢʏ ᴧᴜᴅɪσ</s> ➜ <spoiler><b>ᴜʟᴛꝛᴧ ʜᴅ ǫᴜᴧʟɪᴛʏ 🎧</b></spoiler>
+  • <s>ʟᴧɢɢʏ ᴧᴜᴅɪσ</s> ➜ <tg-spoiler><b>ᴜʟᴛꝛᴧ ʜᴅ ǫᴜᴧʟɪᴛʏ 🎧</b></tg-spoiler>
   • sᴜᴘᴘσꝛᴛs: <code>ʏσυᴛᴜʙє</code>, <code>sᴘσᴛɪғʏ</code>, <code>ᴊɪσsᴧᴧᴠη</code>, <code>sσυηᴅᴄʟσυᴅ</code> & ᴍσꝛє.
-  • <b>sᴛᴧᴛᴜs:</b> <spoiler>⚡ ᴏɴʟɪɴᴇ & ʀᴇᴀᴅʏ ᴛᴏ ᴘʟᴀʏ</spoiler>
+  • <b>sᴛᴧᴛᴜs:</b> <tg-spoiler>⚡ ᴏɴʟɪɴᴇ & ʀᴇᴀᴅʏ ᴛᴏ ᴘʟᴀʏ</tg-spoiler>
 
   💫 <i>ғєєʟ ғꝛєє ᴛσ ᴧᴅᴅ ᴍє ᴛσ ʏσυꝛ ɢꝛσυᴘs & єηᴊσʏ!</i> ✨</blockquote>
-  <blockquote collapsed="true">📖 <b><u>ǫᴜɪᴄᴋ ɢᴜɪᴅє & ᴄσϻϻᴧηᴅs</u>:</b>
+  <blockquote expandable>📖 <b><u>ǫᴜɪᴄᴋ ɢᴜɪᴅє & ᴄσϻϻᴧηᴅs</u>:</b>
   • <b>/play</b> <code>&lt;song&gt;</code> ➜ <i>ᴘʟᴧʏ ᴧᴜᴅɪσ ɪη ɢꝛσυᴘ ᴠᴄ</i>
   • <b>/vplay</b> <code>&lt;query&gt;</code> ➜ <i>ᴘʟᴧʏ ᴠɪᴅєσ ɪη ɢꝛσυᴘ ᴠᴄ</i>
   • <b>/settings</b> ➜ <i>ᴄᴜsᴛσᴍɪᴢє ʙσᴛ ᴘꝛєғєꝛєηᴄєs</i>
   • <b>/help</b> ➜ <i>ɢєᴛ ғᴜʟʟ ᴄσϻϻᴧηᴅ ʟɪsᴛ</i>
-  • <b>sᴇᴄʀᴇᴛ:</b> <spoiler>⚡ ᴜsє /speedtest ᴛσ ᴄʜєᴄᴋ ᴘɪηɢ</spoiler>
-  • <b>ᴛɪᴘ:</b> <spoiler>💡 ᴜsᴇ /cplay ғᴏʀ ᴄʜᴀɴɴᴇʟ ꜱᴛʀᴇᴀᴍɪɴɢ</spoiler></blockquote>
+  • <b>sᴇᴄʀᴇᴛ:</b> <tg-spoiler>⚡ ᴜsє /speedtest ᴛσ ᴄʜєᴄᴋ ᴘɪηɢ</tg-spoiler>
+  • <b>ᴛɪᴘ:</b> <tg-spoiler>💡 ᴜsᴇ /cplay ғᴏʀ ᴄʜᴀɴɴᴇʟ ꜱᴛʀᴇᴀᴍɪɴɢ</tg-spoiler></blockquote>
 
 start_group: "<b>💫 I’m here!</b> Try a command… if you think you can handle me 😉"
 
@@ -1000,7 +1000,7 @@ help_owner: |
   • <b>/restart</b> ➜ <i>ꝛєsᴛᴧꝛᴛ ᴛʜє ʙσᴛ єηɢɪηє</i>
   • <b>/sh</b> ➜ <i>ꝛᴜη sʜєʟʟ ᴄσϻϻᴧηᴅs</i>
 
-  🔒 <b>sᴇᴄᴜʀɪᴛʏ:</b> <spoiler>ᴏᴡɴᴇʀ ᴄᴏᴍᴍᴀɴᴅꜱ ᴀʀᴇ ꜱᴛʀɪᴄᴛʟʏ ʀᴇꜱᴛʀɪᴄᴛᴇᴅ</spoiler></blockquote>
+  🔒 <b>sᴇᴄᴜʀɪᴛʏ:</b> <tg-spoiler>ᴏᴡɴᴇʀ ᴄᴏᴍᴍᴀɴᴅꜱ ᴀʀᴇ ꜱᴛʀɪᴄᴛʟʏ ʀᴇꜱᴛʀɪᴄᴛᴇᴅ</tg-spoiler></blockquote>
 
 help_sudo: |
   <blockquote><a href="https://yukiapi.site/file/awTXo6DL">⚡</a> <b><u>sᴜᴅσєꝛ ᴄσϻϻᴧηᴅs</u></b>
@@ -1013,7 +1013,7 @@ help_sudo: |
   • <b>/stats</b> ➜ <i>ᴠɪєᴡ ʙσᴛ &amp; sʏsᴛєᴍ sᴛᴧᴛs</i>
   • <b>/logs</b> ➜ <i>ɢєᴛ ʟɪᴠє sʏsᴛєᴍ ʟσɢs</i>
 
-  ⚡ <b>sᴛᴧᴛᴜs:</b> <spoiler>ꜱᴜᴅᴏᴇʀ ᴀᴄᴄᴇꜱꜱ ɢʀᴀɴᴛᴇᴅ</spoiler></blockquote>
+  ⚡ <b>sᴛᴧᴛᴜs:</b> <tg-spoiler>ꜱᴜᴅᴏᴇʀ ᴀᴄᴄᴇꜱꜱ ɢʀᴀɴᴛᴇᴅ</tg-spoiler></blockquote>
 
 help_admin: |
   <blockquote><a href="https://yukiapi.site/file/awTXo6DL">🛠</a> <b><u>ᴧᴅϻɪη ᴄσϻϻᴧηᴅs</u></b>
@@ -1043,7 +1043,7 @@ help_admin: |
   • <b>/stop</b> ➜ <i>sᴛσᴘ ᴘʟᴧʏʙᴧᴄᴋ &amp; ʟєᴧᴠє ᴠᴄ</i>
   • <b>/nothumb</b> ➜ <i>ᴛσɢɢʟє ᴧꝛᴛᴡσꝛᴋ ɪη ᴍєssᴧɢєs</i>
 
-  💡 <b>ᴛɪᴘ:</b> <spoiler>ᴜsᴇ /cplay &lt;song&gt; ᴛᴏ sᴛʀᴇᴀᴍ ɪɴ ᴄʜᴀɴɴᴇʟ</spoiler></blockquote>
+  💡 <b>ᴛɪᴘ:</b> <tg-spoiler>ᴜsᴇ /cplay &lt;song&gt; ᴛᴏ sᴛʀᴇᴀᴍ ɪɴ ᴄʜᴀɴɴᴇʟ</tg-spoiler></blockquote>
 
 help_public: |
   <blockquote><a href="https://yukiapi.site/file/awTXo6DL">🌍</a> <b><u>ᴘᴜʙʟɪᴄ ᴄσϻϻᴧηᴅs</u></b>
@@ -1061,4 +1061,4 @@ help_public: |
   • <b>/reload</b> ➜ <i>ꝛєʟσᴧᴅ ᴧᴅϻɪη ᴄᴧᴄʜє</i>
   • <b>/sudolist</b> ➜ <i>ᴠɪєᴡ ʙσᴛ sᴜᴅσ ᴜsєꝛs</i>
 
-  🎵 <b>ғᴜɴ:</b> <spoiler>ꜱᴜᴘᴘᴏʀᴛꜱ ʏᴏᴜᴛᴜʙᴇ, ꜱᴘᴏᴛɪꜰʏ &amp; ᴍᴏʀᴇ!</spoiler></blockquote>
+  🎵 <b>ғᴜɴ:</b> <tg-spoiler>ꜱᴜᴘᴘᴏʀᴛꜱ ʏᴏᴜᴛᴜʙᴇ, ꜱᴘᴏᴛɪꜰʏ &amp; ᴍᴏʀᴇ!</tg-spoiler></blockquote>

@@ -26,6 +26,7 @@ private:
     void HandlePing(const TgMessage& msg);
     void HandleStats(const TgMessage& msg);
     void HandlePlay(const TgMessage& msg, const std::string& query);
+    void HandlePlayer(const TgMessage& msg);
     void HandleFPlay(const TgMessage& msg, const std::string& query);
     void HandlePause(const TgMessage& msg);
     void HandleResume(const TgMessage& msg);

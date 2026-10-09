@@ -1,11 +1,30 @@
 #include "audio_engine.hpp"
 #include "logger.hpp"
+#include <curl/curl.h>
+#include <nlohmann/json.hpp>
 #include <iostream>
 #include <sstream>
 #include <unistd.h>
 #include <signal.h>
 #include <sys/wait.h>
 #include <fcntl.h>
+
+static void CallAssistantBridge(const std::string& endpoint, const nlohmann::json& payload) {
+    CURL* curl = curl_easy_init();
+    if (!curl) return;
+    std::string url = "http://127.0.0.1:8055/" + endpoint;
+    std::string json_data = payload.dump();
+    struct curl_slist* headers = nullptr;
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_data.c_str());
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 6L);
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+    curl_easy_perform(curl);
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+}
 
 AudioStreamSession::AudioStreamSession(int64_t chat_id, const std::string& stream_url, int64_t start_offset, double speed, int volume)
     : chat_id_(chat_id), stream_url_(stream_url), start_offset_(start_offset), speed_(speed), volume_(volume),
@@ -23,6 +42,11 @@ bool AudioStreamSession::Start() {
     start_time_ = std::chrono::steady_clock::now();
     is_running_ = true;
     is_paused_ = false;
+
+    CallAssistantBridge("play", {
+        {"chat_id", chat_id_},
+        {"url", stream_url_}
+    });
 
     pid_t pid = fork();
     if (pid == 0) {
@@ -56,27 +80,36 @@ bool AudioStreamSession::Start() {
 }
 
 void AudioStreamSession::Pause() {
-    if (is_running_ && !is_paused_ && ffmpeg_pid_ > 0) {
-        kill(ffmpeg_pid_, SIGSTOP);
+    if (is_running_ && !is_paused_) {
+        CallAssistantBridge("pause", {{"chat_id", chat_id_}});
+        if (ffmpeg_pid_ > 0) {
+            kill(ffmpeg_pid_, SIGSTOP);
+        }
         is_paused_ = true;
         Logger::Info("AUDIO", "Paused playback for chat: " + std::to_string(chat_id_));
     }
 }
 
 void AudioStreamSession::Resume() {
-    if (is_running_ && is_paused_ && ffmpeg_pid_ > 0) {
-        kill(ffmpeg_pid_, SIGCONT);
+    if (is_running_ && is_paused_) {
+        CallAssistantBridge("resume", {{"chat_id", chat_id_}});
+        if (ffmpeg_pid_ > 0) {
+            kill(ffmpeg_pid_, SIGCONT);
+        }
         is_paused_ = false;
         Logger::Info("AUDIO", "Resumed playback for chat: " + std::to_string(chat_id_));
     }
 }
 
 void AudioStreamSession::Stop() {
-    if (is_running_ && ffmpeg_pid_ > 0) {
-        kill(ffmpeg_pid_, SIGTERM);
-        int status;
-        waitpid(ffmpeg_pid_, &status, WNOHANG);
-        ffmpeg_pid_ = -1;
+    if (is_running_) {
+        CallAssistantBridge("leave", {{"chat_id", chat_id_}});
+        if (ffmpeg_pid_ > 0) {
+            kill(ffmpeg_pid_, SIGTERM);
+            int status;
+            waitpid(ffmpeg_pid_, &status, WNOHANG);
+            ffmpeg_pid_ = -1;
+        }
         is_running_ = false;
         is_paused_ = false;
         Logger::Info("AUDIO", "Stopped playback for chat: " + std::to_string(chat_id_));
@@ -108,28 +141,26 @@ int64_t AudioStreamSession::GetCurrentPosition() const {
     return start_offset_ + static_cast<int64_t>(elapsed * speed_);
 }
 
-void AudioStreamSession::SetVolume(int vol) {
-    volume_ = vol;
-}
-
-void AudioStreamSession::SetSpeed(double spd) {
-    speed_ = spd;
-}
-
 AudioEngine& AudioEngine::Instance() {
     static AudioEngine instance;
     return instance;
 }
 
 bool AudioEngine::VerifyFFmpeg() {
-    return system("which ffmpeg > /dev/null 2>&1") == 0;
+    int ret = system("ffmpeg -version > /dev/null 2>&1");
+    return (ret == 0);
 }
 
-bool AudioEngine::StartPlayback(int64_t chat_id, const std::string& audio_url, int64_t start_offset, double speed, int volume) {
+bool AudioEngine::StartPlayback(int64_t chat_id, const std::string& stream_url, int64_t start_offset, double speed, int volume) {
     std::lock_guard<std::mutex> lock(sessions_mutex_);
-    current_urls_[chat_id] = audio_url;
-    auto session = std::make_shared<AudioStreamSession>(chat_id, audio_url, start_offset, speed, volume);
+    auto it = sessions_.find(chat_id);
+    if (it != sessions_.end()) {
+        it->second->Stop();
+    }
+
+    auto session = std::make_shared<AudioStreamSession>(chat_id, stream_url, start_offset, speed, volume);
     sessions_[chat_id] = session;
+    current_urls_[chat_id] = stream_url;
     return session->Start();
 }
 

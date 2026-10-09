@@ -344,7 +344,10 @@ void BotEngine::Run() {
 }
 
 void BotEngine::ProcessMessage(const TgMessage& msg) {
-    if (msg.text.empty() || msg.text[0] != '/') return;
+    if (msg.text.empty()) return;
+
+    std::string sender = msg.from.username.empty() ? msg.from.first_name : "@" + msg.from.username;
+    Logger::Info("BOT", "Incoming [" + std::to_string(msg.chat.id) + "] from " + sender + ": " + msg.text);
 
     if (Database::Instance().IsBlacklisted(msg.from.id) || Database::Instance().IsBlacklisted(msg.chat.id)) {
         return;
@@ -353,13 +356,22 @@ void BotEngine::ProcessMessage(const TgMessage& msg) {
     Database::Instance().RegisterChat(msg.chat.id);
 
     std::stringstream ss(msg.text);
-    std::string cmd;
-    ss >> cmd;
+    std::string raw_cmd;
+    ss >> raw_cmd;
 
+    std::string cmd = raw_cmd;
     auto at_pos = cmd.find('@');
     if (at_pos != std::string::npos) {
         cmd = cmd.substr(0, at_pos);
     }
+
+    if (!cmd.empty() && (cmd[0] == '/' || cmd[0] == '!' || cmd[0] == '.')) {
+        cmd = "/" + cmd.substr(1);
+    } else {
+        cmd = "/" + cmd;
+    }
+
+    std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::tolower);
 
     std::string args;
     std::getline(ss, args);
@@ -376,6 +388,8 @@ void BotEngine::ProcessMessage(const TgMessage& msg) {
         HandleHelp(msg);
     } else if (cmd == "/ping") {
         HandlePing(msg);
+    } else if (cmd == "/player" || cmd == "/cplayer") {
+        HandlePlayer(msg);
     } else if (cmd == "/play" || cmd == "/p" || cmd == "/vplay" || cmd == "/cplay" || cmd == "/vcplay" || cmd == "/cvplay") {
         HandlePlay(msg, args);
     } else if (cmd == "/fplay" || cmd == "/playforce" || cmd == "/fvplay" || cmd == "/vfplay" || cmd == "/vplayforce" ||
@@ -515,9 +529,23 @@ void BotEngine::HandleStart(const TgMessage& msg) {
             {"user", user_mention},
             {"bot", bot_mention}
         });
+        if (text == "[start_private]" || text.empty()) {
+            text = "<blockquote>👋 <b>ʜєʏ " + user_mention + "</b>, <i>ᴍʏ ηᴧᴍє ɪs</i> " + bot_mention + " 🎶\n\n"
+                   "✨ <b><u>ᴧʙσυᴛ ᴍє</u>:</b>\n"
+                   "• ᴧ ᴘσᴡєꝛғᴜʟ &amp; ʜɪɢʜ-ǫᴜᴧʟɪᴛʏ ᴛєʟєɢꝛᴧᴍ ᴍᴜsɪᴄ sᴛꝛєᴧᴍɪηɢ ʙσᴛ.\n"
+                   "• <b>sᴛᴧᴛᴜs:</b> <tg-spoiler>⚡ ᴏɴʟɪɴᴇ &amp; ʀᴇᴀᴅʏ ᴛᴏ ᴘʟᴀʏ</tg-spoiler></blockquote>\n"
+                   "<blockquote expandable>📖 <b><u>ǫᴜɪᴄᴋ ɢᴜɪᴅє &amp; ᴄσϻϻᴧηᴅs</u>:</b>\n"
+                   "• <b>/play</b> <code>&lt;song&gt;</code> ➜ <i>ᴘʟᴧʏ ᴧᴜᴅɪσ ɪη ɢꝛσυᴘ ᴠᴄ</i>\n"
+                   "• <b>/vplay</b> <code>&lt;query&gt;</code> ➜ <i>ᴘʟᴧʏ ᴠɪᴅєσ ɪη ɢꝛσυᴘ ᴠᴄ</i>\n"
+                   "• <b>/settings</b> ➜ <i>ᴄᴜsᴛσᴍɪᴢє ʙσᴛ ᴘꝛєғєꝛєηᴄєs</i>\n"
+                   "• <b>/help</b> ➜ <i>ɢєᴛ ғᴜʟʟ ᴄσϻϻᴧηᴅ ʟɪsᴛ</i></blockquote>";
+        }
         tg_->SendMessage(msg.chat.id, text, MakeStartMarkup(msg.chat.id));
     } else {
         std::string text = lm.F(msg.chat.id, "start_group");
+        if (text == "[start_group]" || text.empty()) {
+            text = "<b>💫 I’m here!</b> Try a command… if you think you can handle me 😉";
+        }
         tg_->SendMessage(msg.chat.id, text, MakeStartMarkup(msg.chat.id));
     }
 }
@@ -526,6 +554,9 @@ void BotEngine::HandleHelp(const TgMessage& msg) {
     auto& lm = LocalizationManager::Instance();
     if (msg.chat.type != "private" && !msg.chat.type.empty()) {
         std::string text = lm.F(msg.chat.id, "help_private_only");
+        if (text == "[help_private_only]" || text.empty()) {
+            text = "<blockquote>📖 <b><u>Help Menu</u>:</b>\n\n<i>Please open my PM to view the full help guide and button controls!</i></blockquote>";
+        }
         nlohmann::json kb = {
             {"inline_keyboard", {
                 {
@@ -538,12 +569,18 @@ void BotEngine::HandleHelp(const TgMessage& msg) {
     }
 
     std::string text = lm.F(msg.chat.id, "help_main");
+    if (text == "[help_main]" || text.empty()) {
+        text = "<blockquote>📖 <b><u>YukkiMusic Help Guide</u>:</b>\n\n<i>Choose a category below to view all available commands:</i></blockquote>";
+    }
     tg_->SendMessage(msg.chat.id, text, MakeHelpMarkup(msg.chat.id));
 }
 
 void BotEngine::HandlePing(const TgMessage& msg) {
     auto& lm = LocalizationManager::Instance();
     std::string ping_start = lm.F(msg.chat.id, "ping_start");
+    if (ping_start == "[ping_start]" || ping_start.empty()) {
+        ping_start = "<blockquote>🏓 <b><u>ᴘɪηɢɪηɢ...</u></b>\n\n<i>ᴄʜєᴄᴋɪηɢ ʟᴧᴛєηᴄʏ &amp; sʏsᴛєᴍ sᴛᴧᴛs</i></blockquote>";
+    }
 
     auto t1 = std::chrono::steady_clock::now();
     int msg_id = tg_->SendMessage(msg.chat.id, ping_start);
@@ -563,11 +600,45 @@ void BotEngine::HandlePing(const TgMessage& msg) {
         {"disk_usage", GetDiskUsageString()}
     });
 
+    if (result_text == "[ping_result]" || result_text.empty()) {
+        result_text = "<blockquote>🏓 <b><u>ᴘσηɢ!</u></b> ➜ <code>" + std::to_string(latency) + "ms</code></blockquote>\n"
+                      "<blockquote>📊 <b><u>sʏsᴛєᴍ sᴛᴧᴛs</u>:</b>\n\n"
+                      "• ⏳ <b>ᴜᴘᴛɪᴍє:</b> <code>" + GetUptimeString() + "</code>\n"
+                      "• 🧠 <b>ꝛᴧϻ ᴜsᴧɢє:</b> <code>" + GetSystemMemoryUsage() + "</code>\n"
+                      "• ⚡ <b>ᴄᴘᴜ ᴜsᴧɢє:</b> <code>" + GetCpuUsageString() + "</code>\n"
+                      "• 💾 <b>ᴅɪsᴋ ᴜsᴧɢє:</b> <code>" + GetDiskUsageString() + "</code>\n"
+                      "• 🤖 <b>ʙσᴛ:</b> " + bot_mention + "\n\n"
+                      "💡 <b>sᴛᴧᴛᴜs:</b> <tg-spoiler>🟢 ᴀʟʟ sʏsᴛᴇᴍs ᴏᴘᴇʀᴀᴛɪᴏɴᴀʟ</tg-spoiler></blockquote>";
+    }
+
     if (msg_id > 0) {
         tg_->EditMessageText(msg.chat.id, msg_id, result_text, MakeSupportMarkup(msg.chat.id));
     } else {
         tg_->SendMessage(msg.chat.id, result_text, MakeSupportMarkup(msg.chat.id));
     }
+}
+
+void BotEngine::HandlePlayer(const TgMessage& msg) {
+    auto& lm = LocalizationManager::Instance();
+    auto& qm = QueueManager::Instance();
+    auto cur = qm.GetCurrent(msg.chat.id);
+    if (!cur.has_value()) {
+        tg_->SendMessage(msg.chat.id, "<blockquote>⚠️ <b>Nothing is currently playing in this chat!</b>\n\n<i>Use <code>/play &lt;song&gt;</code> in a group voice chat to start streaming.</i></blockquote>", MakeStartMarkup(msg.chat.id));
+        return;
+    }
+    int pos = AudioEngine::Instance().GetPosition(msg.chat.id);
+    int total = cur->duration_seconds > 0 ? cur->duration_seconds : 240;
+    std::string now_playing = lm.F(msg.chat.id, "stream_now_playing", {
+        {"thumb", "<a href=\"" + cur->thumbnail_url + "\">🎵</a>"},
+        {"url", cur->url},
+        {"title", cur->title},
+        {"duration", cur->duration},
+        {"by", cur->requester_name}
+    });
+    if (now_playing == "[stream_now_playing]" || now_playing.empty()) {
+        now_playing = "<blockquote>🎵 <b>Now Playing:</b> <a href=\"" + cur->url + "\">" + cur->title + "</a>\n⏱ <b>Duration:</b> <code>" + cur->duration + "</code> | 👤 <b>Requested by:</b> " + cur->requester_name + "</blockquote>";
+    }
+    tg_->SendMessage(msg.chat.id, now_playing, MakePlayerMarkup(msg.chat.id, pos, total));
 }
 
 void BotEngine::HandleStats(const TgMessage& msg) {
@@ -609,9 +680,14 @@ void BotEngine::HandleStats(const TgMessage& msg) {
 
 void BotEngine::HandlePlay(const TgMessage& msg, const std::string& query) {
     auto& lm = LocalizationManager::Instance();
+    if (msg.chat.type == "private" || msg.chat.type.empty()) {
+        tg_->SendMessage(msg.chat.id, "<blockquote>⚠️ <b>Playback is only supported in Groups and Channels with an active Voice Chat!</b>\n\n<i>Please add me to your group and promote me to admin to stream music.</i></blockquote>", MakeStartMarkup(msg.chat.id));
+        return;
+    }
+
     if (query.empty()) {
         std::string err = lm.F(msg.chat.id, "play_usage");
-        if (err == "[play_usage]") {
+        if (err == "[play_usage]" || err.empty()) {
             err = "<blockquote>⚠️ <i>Please provide a track title or URL:</i>\n<code>/play Alan Walker Faded</code></blockquote>";
         }
         tg_->SendMessage(msg.chat.id, err);
