@@ -26,13 +26,14 @@
             "description": "A Pyrogram string session for the assistant.",
             "required": true
         },
-        "FALLEN_API_KEY": {
-            "description": "API key for Fallen API (optional). You can get one from @FallenApiBot or https://beta.fallenapi.fun/. If you are using cookies, you can leave this empty.",
+        "YUKI_API_KEY": {
+            "description": "API key for Yuki Music API (optional). Defaults to official public gateway key.",
+            "value": "yuki_96fcd2d09a8d4f1e36896505bd6ebda8",
             "required": false
         },
-        "FALLEN_API_URL": {
-            "description": "Base URL for the Fallen API. For more info, visit @FallenApiBot or https://beta.fallenapi.fun/.",
-            "value": "https://beta.fallenapi.fun",
+        "YUKI_API_URL": {
+            "description": "Base URL for the Yuki Music API engine (https://music.yukiapi.site).",
+            "value": "https://music.yukiapi.site",
             "required": false
         },
         "OWNER_ID": {

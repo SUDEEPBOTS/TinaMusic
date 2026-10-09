@@ -21,9 +21,9 @@ struct AppConfig {
     std::string default_platform{"YouTube"};
     std::string spotify_client_id;
     std::string spotify_client_secret;
-    std::string fallen_api_url{"https://beta.fallenapi.fun"};
-    std::string fallen_api_key;
-    std::string music_api_url;
+    std::string yuki_api_url{"https://music.yukiapi.site"};
+    std::string yuki_api_key{"yuki_96fcd2d09a8d4f1e36896505bd6ebda8"};
+    std::string music_api_url{"https://music.yukiapi.site/stream/{VIDEO_ID}?key=yuki_96fcd2d09a8d4f1e36896505bd6ebda8"};
     std::string ping_img_url{"https://telegra.ph/file/91533956c91d0fd7c9f20.jpg"};
     std::vector<std::string> start_images;
 };

@@ -77,8 +77,8 @@ AppConfig ConfigLoader::Load(const std::string& env_path) {
     cfg.default_platform = GetEnvVar("DEFAULT_PLATFORM", "YouTube");
     cfg.spotify_client_id = GetEnvVar("SPOTIFY_CLIENT_ID", "");
     cfg.spotify_client_secret = GetEnvVar("SPOTIFY_CLIENT_SECRET", "");
-    cfg.fallen_api_url = GetEnvVar("FALLEN_API_URL", "https://beta.fallenapi.fun");
-    cfg.fallen_api_key = GetEnvVar("FALLEN_API_KEY", "");
+    cfg.yuki_api_url = GetEnvVar("YUKI_API_URL", GetEnvVar("API_URL", "https://music.yukiapi.site"));
+    cfg.yuki_api_key = GetEnvVar("YUKI_API_KEY", GetEnvVar("API_KEY", "yuki_96fcd2d09a8d4f1e36896505bd6ebda8"));
     cfg.music_api_url = GetEnvVar("MUSIC_API_URL", GetEnvVar("STREAM_API_URL", "https://music.yukiapi.site/stream/{VIDEO_ID}?key=yuki_96fcd2d09a8d4f1e36896505bd6ebda8"));
     cfg.ping_img_url = GetEnvVar("PING_IMG_URL", "https://telegra.ph/file/91533956c91d0fd7c9f20.jpg");
 
