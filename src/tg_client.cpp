@@ -51,10 +51,23 @@ bool TelegramClient::TestConnection() {
     if (res.empty()) return false;
     try {
         auto j = nlohmann::json::parse(res);
-        return j.value("ok", false);
+        if (j.value("ok", false) && j.contains("result")) {
+            bot_username_ = j["result"].value("username", "YukkiMusicBot");
+            bot_first_name_ = j["result"].value("first_name", "YukkiMusic");
+            return true;
+        }
     } catch (...) {
         return false;
     }
+    return false;
+}
+
+std::string TelegramClient::GetBotUsername() const {
+    return bot_username_;
+}
+
+std::string TelegramClient::GetBotFirstName() const {
+    return bot_first_name_;
 }
 
 std::vector<TgUpdate> TelegramClient::GetUpdates(int64_t offset, int timeout) {
@@ -159,6 +172,21 @@ bool TelegramClient::EditMessageText(int64_t chat_id, int message_id, const std:
     }
 
     std::string res = PerformRequest("editMessageText", payload);
+    if (res.empty()) return false;
+    try {
+        auto j = nlohmann::json::parse(res);
+        return j.value("ok", false);
+    } catch (...) {
+        return false;
+    }
+}
+
+bool TelegramClient::DeleteMessage(int64_t chat_id, int message_id) {
+    nlohmann::json payload = {
+        {"chat_id", chat_id},
+        {"message_id", message_id}
+    };
+    std::string res = PerformRequest("deleteMessage", payload);
     if (res.empty()) return false;
     try {
         auto j = nlohmann::json::parse(res);

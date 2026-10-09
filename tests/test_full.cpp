@@ -62,24 +62,33 @@ void TestDatabase() {
 }
 
 void TestLocales() {
-    Logger::Info("TEST", "Testing Locales...");
+    Logger::Info("TEST", "Testing Locales with YAML files...");
     auto& lm = LocalizationManager::Instance();
 
-    std::string enHelp = lm.Get("en", "help");
-    assert(!enHelp.empty());
-    assert(enHelp.find("YukkiMusic") != std::string::npos);
+    std::string addBtn = lm.Get("en", "ADD_ME_BTN");
+    assert(!addBtn.empty());
+    assert(addBtn.find("ᴧᴅᴅ") != std::string::npos);
 
-    std::string hiHelp = lm.Get("hi", "help");
-    assert(!hiHelp.empty());
-    assert(hiHelp.find("कमांड्स") != std::string::npos);
+    std::string pingStart = lm.Get("en", "ping_start");
+    assert(!pingStart.empty());
+    assert(pingStart.find("ᴘɪηɢɪηɢ") != std::string::npos);
 
-    std::string arHelp = lm.Get("ar", "help");
-    assert(!arHelp.empty());
+    std::string startPriv = lm.Get("en", "start_private", {{"user", "Alice"}, {"bot", "YukkiBot"}});
+    assert(!startPriv.empty());
+    assert(startPriv.find("Alice") != std::string::npos);
+    assert(startPriv.find("YukkiBot") != std::string::npos);
+    assert(startPriv.find("https://yukiapi.site/file/iCggpP12") != std::string::npos);
 
-    std::string trHelp = lm.Get("tr", "help");
-    assert(!trHelp.empty());
+    std::string hiPing = lm.Get("hi", "ping_start");
+    assert(!hiPing.empty());
 
-    Logger::Info("TEST", "Locales tests passed!");
+    std::string arPing = lm.Get("ar", "ping_start");
+    assert(!arPing.empty());
+
+    std::string trPing = lm.Get("tr", "ping_start");
+    assert(!trPing.empty());
+
+    Logger::Info("TEST", "Locales YAML tests passed!");
 }
 
 int main() {

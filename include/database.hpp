@@ -36,6 +36,7 @@ public:
     void RegisterChat(int64_t chat_id);
     int64_t GetTotalPlays();
     size_t GetTotalChats();
+    std::unordered_set<int64_t> GetServedChats();
 
 private:
     Database() = default;

@@ -5,10 +5,18 @@
 #include <memory>
 #include <sstream>
 
+struct PipeCloser {
+    void operator()(FILE* fp) const {
+        if (fp) {
+            pclose(fp);
+        }
+    }
+};
+
 std::string PlatformYouTube::ExecCommand(const std::string& cmd) {
     std::array<char, 512> buffer;
     std::string result;
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
+    std::unique_ptr<FILE, PipeCloser> pipe(popen(cmd.c_str(), "r"));
     if (!pipe) {
         return "";
     }

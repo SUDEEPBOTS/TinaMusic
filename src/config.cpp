@@ -46,22 +46,45 @@ AppConfig ConfigLoader::Load(const std::string& env_path) {
     ParseEnvFile("/root/YukkiMusic-Go/.env");
 
     AppConfig cfg;
-    cfg.bot_token = GetEnvVar("BOT_TOKEN", "");
+    cfg.bot_token = GetEnvVar("TOKEN", GetEnvVar("BOT_TOKEN", ""));
     cfg.api_id = GetEnvVar("API_ID", "");
     cfg.api_hash = GetEnvVar("API_HASH", "");
-    
+
     std::string owner_str = GetEnvVar("OWNER_ID", "0");
     if (!owner_str.empty()) {
         try { cfg.owner_id = std::stoll(owner_str); } catch (...) {}
     }
 
-    cfg.mongo_uri = GetEnvVar("MONGO_URI", "");
+    cfg.mongo_uri = GetEnvVar("MONGO_DB_URI", GetEnvVar("MONGO_URI", ""));
 
-    std::string log_str = GetEnvVar("LOG_GROUP_ID", "0");
+    std::string log_str = GetEnvVar("LOGGER_ID", GetEnvVar("LOG_GROUP_ID", "0"));
     if (!log_str.empty()) {
         try { cfg.log_group_id = std::stoll(log_str); } catch (...) {}
     }
 
+    cfg.string_session = GetEnvVar("STRING_SESSIONS", GetEnvVar("STRING_SESSION", ""));
+    cfg.session_type = GetEnvVar("SESSION_TYPE", "pyrogram");
+    cfg.support_chat = GetEnvVar("SUPPORT_CHAT", "https://t.me/TheTeamVk");
+    cfg.support_channel = GetEnvVar("SUPPORT_CHANNEL", "https://t.me/TheTeamVivek");
+    cfg.default_lang = GetEnvVar("DEFAULT_LANG", "en");
+
+    std::string dur_str = GetEnvVar("DURATION_LIMIT", "4200");
+    try { cfg.duration_limit = std::stoi(dur_str); } catch (...) {}
+
+    std::string queue_str = GetEnvVar("QUEUE_LIMIT", "24");
+    try { cfg.max_queue_size = std::stoi(queue_str); } catch (...) {}
+
     cfg.default_platform = GetEnvVar("DEFAULT_PLATFORM", "YouTube");
+    cfg.spotify_client_id = GetEnvVar("SPOTIFY_CLIENT_ID", "");
+    cfg.spotify_client_secret = GetEnvVar("SPOTIFY_CLIENT_SECRET", "");
+    cfg.fallen_api_url = GetEnvVar("FALLEN_API_URL", "https://beta.fallenapi.fun");
+    cfg.fallen_api_key = GetEnvVar("FALLEN_API_KEY", "");
+    cfg.ping_img_url = GetEnvVar("PING_IMG_URL", "https://telegra.ph/file/91533956c91d0fd7c9f20.jpg");
+
+    std::string start_img = GetEnvVar("START_IMAGES", GetEnvVar("START_IMG_URL", ""));
+    if (!start_img.empty()) {
+        cfg.start_images.push_back(start_img);
+    }
+
     return cfg;
 }

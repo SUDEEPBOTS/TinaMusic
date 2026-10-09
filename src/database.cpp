@@ -158,3 +158,8 @@ size_t Database::GetTotalChats() {
     std::lock_guard<std::mutex> lock(db_mutex_);
     return served_chats_.size();
 }
+
+std::unordered_set<int64_t> Database::GetServedChats() {
+    std::lock_guard<std::mutex> lock(db_mutex_);
+    return served_chats_;
+}

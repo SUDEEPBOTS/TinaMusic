@@ -1,20 +1,19 @@
 #pragma once
 
+#include <string>
+#include <memory>
+#include <chrono>
+#include <nlohmann/json.hpp>
 #include "config.hpp"
 #include "tg_client.hpp"
 #include "queue_manager.hpp"
-#include "audio_engine.hpp"
 #include "database.hpp"
 #include "locales.hpp"
-#include <atomic>
-#include <memory>
-#include <chrono>
+#include "audio_engine.hpp"
 
 class BotEngine {
 public:
     BotEngine(const AppConfig& config);
-    ~BotEngine() = default;
-
     void Run();
     void Stop();
 
@@ -25,6 +24,7 @@ private:
     void HandleStart(const TgMessage& msg);
     void HandleHelp(const TgMessage& msg);
     void HandlePing(const TgMessage& msg);
+    void HandleStats(const TgMessage& msg);
     void HandlePlay(const TgMessage& msg, const std::string& query);
     void HandlePause(const TgMessage& msg);
     void HandleResume(const TgMessage& msg);
@@ -37,23 +37,28 @@ private:
     void HandleSpeed(const TgMessage& msg, const std::string& args);
     void HandleReplay(const TgMessage& msg);
     void HandleSettings(const TgMessage& msg);
-    void HandleLanguage(const TgMessage& msg, const std::string& lang);
-    void HandleStats(const TgMessage& msg);
-    void HandleBroadcast(const TgMessage& msg, const std::string& content);
+    void HandleLanguage(const TgMessage& msg, const std::string& args);
+    void HandleBroadcast(const TgMessage& msg, const std::string& args);
     void HandleAuth(const TgMessage& msg);
     void HandleUnauth(const TgMessage& msg);
     void HandleBlacklist(const TgMessage& msg, const std::string& args);
 
-    nlohmann::json MakePlayerControlsMarkup(int64_t chat_id);
+    nlohmann::json MakeStartMarkup(int64_t chat_id);
+    nlohmann::json MakeHelpMarkup(int64_t chat_id);
+    nlohmann::json MakeBackMarkup(int64_t chat_id);
+    nlohmann::json MakeSupportMarkup(int64_t chat_id);
+    nlohmann::json MakePlayerMarkup(int64_t chat_id, int current_pos, int duration);
     nlohmann::json MakeSettingsMarkup(int64_t chat_id);
     nlohmann::json MakeLanguageMarkup();
 
-    std::string GetSystemMemoryUsage();
     std::string GetUptimeString();
+    std::string GetSystemMemoryUsage();
+    std::string GetCpuUsageString();
+    std::string GetDiskUsageString();
 
     AppConfig config_;
     std::unique_ptr<TelegramClient> tg_;
-    std::atomic<bool> is_running_{false};
+    bool is_running_{false};
     int64_t last_update_id_{0};
     std::chrono::steady_clock::time_point boot_time_;
 };

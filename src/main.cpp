@@ -16,6 +16,9 @@ void SignalHandler(int signum) {
 }
 
 int main(int argc, char* argv[]) {
+    (void)argc;
+    (void)argv;
+
     std::cout << R"(
 ========================================================================
   YUKKIMUSIC C++20 NATIVE TELEGRAM MUSIC ENGINE

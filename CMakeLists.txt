@@ -26,7 +26,7 @@ set(SOURCES
 )
 
 add_executable(yukki-music-bot ${SOURCES})
-target_link_libraries(yukki-music-bot PRIVATE CURL::libcurl ntgcalls pthread dl z resolv)
+target_link_libraries(yukki-music-bot PRIVATE CURL::libcurl ntgcalls yaml-cpp pthread dl z resolv)
 
-add_executable(test_queue tests/test_queue.cpp src/queue_manager.cpp src/logger.cpp)
-target_link_libraries(test_queue PRIVATE pthread)
+add_executable(test_full tests/test_full.cpp src/queue_manager.cpp src/logger.cpp src/database.cpp src/locales.cpp)
+target_link_libraries(test_full PRIVATE yaml-cpp pthread)
