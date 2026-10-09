@@ -1,6 +1,6 @@
 CXX = g++
-CXXFLAGS = -std=c++20 -O2 -Wall -Wextra -pthread -Iinclude -I/usr/include
-LDFLAGS = -lcurl -lpthread
+CXXFLAGS = -std=c++20 -O2 -Wall -Wextra -pthread -Iinclude -Ivendor/ntgcalls/include -I/usr/include
+LDFLAGS = -Lvendor/ntgcalls/lib -lntgcalls -lcurl -lpthread -ldl -lz -lresolv
 
 SRCDIR = src
 INCDIR = include
@@ -24,11 +24,13 @@ $(BINDIR)/%.o: $(SRCDIR)/%.cpp
 	@mkdir -p $(BINDIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+TEST_TARGET = $(BINDIR)/test_full
+
 test: $(TEST_TARGET)
-	@echo "Running tests..."
+	@echo "Running full test suite..."
 	@./$(TEST_TARGET)
 
-$(TEST_TARGET): $(TESTDIR)/test_queue.cpp $(BINDIR)/queue_manager.o $(BINDIR)/logger.o
+$(TEST_TARGET): $(TESTDIR)/test_full.cpp $(BINDIR)/queue_manager.o $(BINDIR)/logger.o $(BINDIR)/database.o $(BINDIR)/locales.o
 	@mkdir -p $(BINDIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^ -lpthread
 
