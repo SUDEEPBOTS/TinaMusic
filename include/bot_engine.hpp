@@ -42,6 +42,8 @@ private:
     void HandleAuth(const TgMessage& msg);
     void HandleUnauth(const TgMessage& msg);
     void HandleBlacklist(const TgMessage& msg, const std::string& args);
+    void HandleAutoplay(const TgMessage& msg, const std::string& args);
+    void HandleNoThumb(const TgMessage& msg, const std::string& args);
 
     nlohmann::json MakeStartMarkup(int64_t chat_id);
     nlohmann::json MakeHelpMarkup(int64_t chat_id);
@@ -50,6 +52,8 @@ private:
     nlohmann::json MakePlayerMarkup(int64_t chat_id, int current_pos, int duration);
     nlohmann::json MakeSettingsMarkup(int64_t chat_id);
     nlohmann::json MakeLanguageMarkup();
+    nlohmann::json BuildAutoplayMarkup(int64_t chat_id, bool enabled);
+    std::string GetAutoplayMessage(bool enabled);
 
     std::string GetUptimeString();
     std::string GetSystemMemoryUsage();

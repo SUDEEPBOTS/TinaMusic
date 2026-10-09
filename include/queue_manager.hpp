@@ -3,6 +3,7 @@
 #include "models.hpp"
 #include <deque>
 #include <unordered_map>
+#include <unordered_set>
 #include <mutex>
 #include <optional>
 #include <vector>
@@ -14,6 +15,7 @@ struct ChatQueueData {
     PlaybackStatus status{PlaybackStatus::IDLE};
     bool loop{false};
     std::vector<Track> history;
+    std::unordered_set<std::string> played_ids;
     std::mutex queue_mutex;
 };
 
@@ -33,6 +35,11 @@ public:
     PlaybackStatus GetStatus(int64_t chat_id);
     size_t QueueSize(int64_t chat_id);
     bool HasNext(int64_t chat_id);
+
+    void MarkPlayed(int64_t chat_id, const std::string& track_id);
+    bool HasPlayed(int64_t chat_id, const std::string& track_id);
+    std::unordered_set<std::string> GetPlayedHistory(int64_t chat_id);
+    void ClearPlayedHistory(int64_t chat_id);
 
 private:
     QueueManager() = default;

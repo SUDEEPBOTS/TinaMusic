@@ -11,9 +11,9 @@ ChatQueueData& QueueManager::GetOrCreateQueue(int64_t chat_id) {
     std::lock_guard<std::mutex> lock(registry_mutex_);
     auto it = queues_.find(chat_id);
     if (it == queues_.end()) {
-        auto data = std::make_shared<ChatQueueData>();
-        queues_[chat_id] = data;
-        return *data;
+        auto q = std::make_shared<ChatQueueData>();
+        queues_[chat_id] = q;
+        return *q;
     }
     return *(it->second);
 }
@@ -21,8 +21,10 @@ ChatQueueData& QueueManager::GetOrCreateQueue(int64_t chat_id) {
 void QueueManager::Enqueue(int64_t chat_id, const Track& track) {
     auto& q = GetOrCreateQueue(chat_id);
     std::lock_guard<std::mutex> lock(q.queue_mutex);
+
     if (!q.active_track.has_value() && q.pending_tracks.empty()) {
         q.active_track = track;
+        q.played_ids.insert(track.id);
         q.status = PlaybackStatus::PLAYING;
     } else {
         q.pending_tracks.push_back(track);
@@ -33,24 +35,25 @@ std::optional<Track> QueueManager::Next(int64_t chat_id) {
     auto& q = GetOrCreateQueue(chat_id);
     std::lock_guard<std::mutex> lock(q.queue_mutex);
 
-    if (q.loop && q.active_track.has_value()) {
-        return q.active_track;
-    }
-
     if (q.active_track.has_value()) {
-        q.history.push_back(q.active_track.value());
-        q.active_track.reset();
+        q.history.push_back(*q.active_track);
+        if (q.loop) {
+            q.pending_tracks.push_back(*q.active_track);
+        }
     }
 
-    if (!q.pending_tracks.empty()) {
-        q.active_track = q.pending_tracks.front();
-        q.pending_tracks.pop_front();
-        q.status = PlaybackStatus::PLAYING;
-        return q.active_track;
+    if (q.pending_tracks.empty()) {
+        q.active_track = std::nullopt;
+        q.status = PlaybackStatus::IDLE;
+        return std::nullopt;
     }
 
-    q.status = PlaybackStatus::IDLE;
-    return std::nullopt;
+    Track next_track = q.pending_tracks.front();
+    q.pending_tracks.pop_front();
+    q.active_track = next_track;
+    q.played_ids.insert(next_track.id);
+    q.status = PlaybackStatus::PLAYING;
+    return next_track;
 }
 
 std::optional<Track> QueueManager::GetCurrent(int64_t chat_id) {
@@ -69,16 +72,18 @@ void QueueManager::Clear(int64_t chat_id) {
     auto& q = GetOrCreateQueue(chat_id);
     std::lock_guard<std::mutex> lock(q.queue_mutex);
     q.pending_tracks.clear();
-    q.active_track.reset();
+    q.active_track = std::nullopt;
     q.status = PlaybackStatus::IDLE;
 }
 
 void QueueManager::Shuffle(int64_t chat_id) {
     auto& q = GetOrCreateQueue(chat_id);
     std::lock_guard<std::mutex> lock(q.queue_mutex);
-    std::random_device rd;
-    std::mt19937 g(rd());
-    std::shuffle(q.pending_tracks.begin(), q.pending_tracks.end(), g);
+    if (q.pending_tracks.size() > 1) {
+        std::random_device rd;
+        std::mt19937 g(rd());
+        std::shuffle(q.pending_tracks.begin(), q.pending_tracks.end(), g);
+    }
 }
 
 void QueueManager::SetLoop(int64_t chat_id, bool enable) {
@@ -114,5 +119,29 @@ size_t QueueManager::QueueSize(int64_t chat_id) {
 bool QueueManager::HasNext(int64_t chat_id) {
     auto& q = GetOrCreateQueue(chat_id);
     std::lock_guard<std::mutex> lock(q.queue_mutex);
-    return !q.pending_tracks.empty() || q.loop;
+    return !q.pending_tracks.empty();
+}
+
+void QueueManager::MarkPlayed(int64_t chat_id, const std::string& track_id) {
+    auto& q = GetOrCreateQueue(chat_id);
+    std::lock_guard<std::mutex> lock(q.queue_mutex);
+    q.played_ids.insert(track_id);
+}
+
+bool QueueManager::HasPlayed(int64_t chat_id, const std::string& track_id) {
+    auto& q = GetOrCreateQueue(chat_id);
+    std::lock_guard<std::mutex> lock(q.queue_mutex);
+    return q.played_ids.find(track_id) != q.played_ids.end();
+}
+
+std::unordered_set<std::string> QueueManager::GetPlayedHistory(int64_t chat_id) {
+    auto& q = GetOrCreateQueue(chat_id);
+    std::lock_guard<std::mutex> lock(q.queue_mutex);
+    return q.played_ids;
+}
+
+void QueueManager::ClearPlayedHistory(int64_t chat_id) {
+    auto& q = GetOrCreateQueue(chat_id);
+    std::lock_guard<std::mutex> lock(q.queue_mutex);
+    q.played_ids.clear();
 }

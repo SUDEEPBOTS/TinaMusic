@@ -11,6 +11,8 @@ struct ChatConfig {
     std::string play_mode{"Everyone"};
     bool clean_mode{true};
     std::string language{"en"};
+    bool autoplay{false};
+    bool show_thumbnails{true};
     std::unordered_set<int64_t> auth_users;
 };
 
@@ -22,6 +24,12 @@ public:
 
     ChatConfig GetChatConfig(int64_t chat_id);
     void SetChatConfig(int64_t chat_id, const ChatConfig& cfg);
+
+    bool IsAutoplayEnabled(int64_t chat_id);
+    void SetAutoplay(int64_t chat_id, bool enabled);
+
+    bool IsThumbnailsEnabled(int64_t chat_id);
+    void SetThumbnails(int64_t chat_id, bool enabled);
 
     void AddSudo(int64_t user_id);
     void RemoveSudo(int64_t user_id);

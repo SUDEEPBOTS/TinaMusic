@@ -29,6 +29,8 @@ void Database::SaveToDisk() {
         c["play_mode"] = cfg.play_mode;
         c["clean_mode"] = cfg.clean_mode;
         c["language"] = cfg.language;
+        c["autoplay"] = cfg.autoplay;
+        c["show_thumbnails"] = cfg.show_thumbnails;
         c["auth_users"] = cfg.auth_users;
         chatsJson[std::to_string(cid)] = c;
     }
@@ -69,6 +71,8 @@ void Database::LoadFromDisk() {
                 cfg.play_mode = val.value("play_mode", "Everyone");
                 cfg.clean_mode = val.value("clean_mode", true);
                 cfg.language = val.value("language", "en");
+                cfg.autoplay = val.value("autoplay", false);
+                cfg.show_thumbnails = val.value("show_thumbnails", true);
                 if (val.contains("auth_users")) {
                     cfg.auth_users = val["auth_users"].get<std::unordered_set<int64_t>>();
                 }
@@ -95,6 +99,26 @@ void Database::SetChatConfig(int64_t chat_id, const ChatConfig& cfg) {
     std::lock_guard<std::mutex> lock(db_mutex_);
     chat_configs_[chat_id] = cfg;
     SaveToDisk();
+}
+
+bool Database::IsAutoplayEnabled(int64_t chat_id) {
+    return GetChatConfig(chat_id).autoplay;
+}
+
+void Database::SetAutoplay(int64_t chat_id, bool enabled) {
+    ChatConfig cfg = GetChatConfig(chat_id);
+    cfg.autoplay = enabled;
+    SetChatConfig(chat_id, cfg);
+}
+
+bool Database::IsThumbnailsEnabled(int64_t chat_id) {
+    return GetChatConfig(chat_id).show_thumbnails;
+}
+
+void Database::SetThumbnails(int64_t chat_id, bool enabled) {
+    ChatConfig cfg = GetChatConfig(chat_id);
+    cfg.show_thumbnails = enabled;
+    SetChatConfig(chat_id, cfg);
 }
 
 void Database::AddSudo(int64_t user_id) {

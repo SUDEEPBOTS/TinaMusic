@@ -1,6 +1,7 @@
 #include "bot_engine.hpp"
 #include "logger.hpp"
 #include "platforms.hpp"
+#include "platform_yt.hpp"
 #include <thread>
 #include <chrono>
 #include <sstream>
@@ -217,13 +218,44 @@ nlohmann::json BotEngine::MakePlayerMarkup(int64_t chat_id, int current_pos, int
     };
 }
 
+nlohmann::json BotEngine::BuildAutoplayMarkup(int64_t chat_id, bool enabled) {
+    std::string toggleText = enabled ? "🟢 Turn OFF" : "🔴 Turn ON";
+    std::string toggleAction = enabled ? "off" : "on";
+    return {
+        {"inline_keyboard", {
+            {
+                {{"text", toggleText}, {"callback_data", "autoplay:" + toggleAction + ":" + std::to_string(chat_id)}},
+                {{"text", "🗑 Close"}, {"callback_data", "close"}}
+            }
+        }}
+    };
+}
+
+std::string BotEngine::GetAutoplayMessage(bool enabled) {
+    std::string status = enabled ? "🟢 <b>Enabled (ON)</b>" : "🔴 <b>Disabled (OFF)</b>";
+    std::string explanation = enabled ?
+        "When the current queue finishes, the bot will <b>automatically discover and stream related songs</b> seamlessly." :
+        "When the current queue finishes, music playback will <b>stop automatically</b>.";
+
+    return "📻 <b>Autoplay Mode Settings</b>\n\n"
+           "• <b>Current Status:</b> " + status + "\n\n"
+           "<i>" + explanation + "</i>\n\n"
+           "<i>Click the button below to toggle the autoplay state:</i>";
+}
+
 nlohmann::json BotEngine::MakeSettingsMarkup(int64_t chat_id) {
     ChatConfig cfg = Database::Instance().GetChatConfig(chat_id);
     std::string cleanText = cfg.clean_mode ? "Clean Mode: ON ✅" : "Clean Mode: OFF ❌";
+    std::string autoText = cfg.autoplay ? "Autoplay: ON 📻" : "Autoplay: OFF 📻";
+    std::string thumbText = cfg.show_thumbnails ? "Thumbnails: ON 🖼️" : "Thumbnails: OFF 🖼️";
     return {
         {"inline_keyboard", {
             {
                 {{"text", cleanText}, {"callback_data", "set_clean"}},
+                {{"text", autoText}, {"callback_data", "set_autoplay"}}
+            },
+            {
+                {{"text", thumbText}, {"callback_data", "set_thumb"}},
                 {{"text", "🌐 Language"}, {"callback_data", "set_lang"}}
             },
             {
@@ -303,18 +335,22 @@ void BotEngine::ProcessMessage(const TgMessage& msg) {
         HandleHelp(msg);
     } else if (cmd == "/ping") {
         HandlePing(msg);
-    } else if (cmd == "/play" || cmd == "/p" || cmd == "/vplay") {
+    } else if (cmd == "/play" || cmd == "/p" || cmd == "/vplay" || cmd == "/cplay") {
         HandlePlay(msg, args);
     } else if (cmd == "/pause") {
         HandlePause(msg);
     } else if (cmd == "/resume") {
         HandleResume(msg);
-    } else if (cmd == "/skip") {
+    } else if (cmd == "/skip" || cmd == "/cskip") {
         HandleSkip(msg);
-    } else if (cmd == "/stop") {
+    } else if (cmd == "/stop" || cmd == "/cstop") {
         HandleStop(msg);
     } else if (cmd == "/queue" || cmd == "/q") {
         HandleQueue(msg);
+    } else if (cmd == "/autoplay" || cmd == "/aplay") {
+        HandleAutoplay(msg, args);
+    } else if (cmd == "/nothumb" || cmd == "/nothumbs") {
+        HandleNoThumb(msg, args);
     } else if (cmd == "/loop") {
         HandleLoop(msg);
     } else if (cmd == "/shuffle") {
@@ -478,10 +514,16 @@ void BotEngine::HandlePlay(const TgMessage& msg, const std::string& query) {
 
     qm.Enqueue(msg.chat.id, track);
 
+    ChatConfig cfg = Database::Instance().GetChatConfig(msg.chat.id);
+    std::string thumb = "🎵";
+    if (cfg.show_thumbnails && !track.thumbnail_url.empty()) {
+        thumb = "<a href=\"" + track.thumbnail_url + "\">🎵</a>";
+    }
+
     if (was_empty) {
         AudioEngine::Instance().StartPlayback(msg.chat.id, track.url);
         std::string now_playing = lm.F(msg.chat.id, "stream_now_playing", {
-            {"thumb", "🎵"},
+            {"thumb", thumb},
             {"url", track.url},
             {"title", track.title},
             {"duration", track.duration},
@@ -519,23 +561,76 @@ void BotEngine::HandleResume(const TgMessage& msg) {
 }
 
 void BotEngine::HandleSkip(const TgMessage& msg) {
+    auto& lm = LocalizationManager::Instance();
     auto& qm = QueueManager::Instance();
+    auto cur = qm.GetCurrent(msg.chat.id);
+
+    int wait_msg = tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "stream_downloading_next"));
+
     auto next = qm.Next(msg.chat.id);
     if (next.has_value()) {
         AudioEngine::Instance().StartPlayback(msg.chat.id, next->url);
-        auto& lm = LocalizationManager::Instance();
+        ChatConfig cfg = Database::Instance().GetChatConfig(msg.chat.id);
+        std::string thumb = "🎵";
+        if (cfg.show_thumbnails && !next->thumbnail_url.empty()) {
+            thumb = "<a href=\"" + next->thumbnail_url + "\">🎵</a>";
+        }
         std::string now_playing = lm.F(msg.chat.id, "stream_now_playing", {
-            {"thumb", "🎵"},
+            {"thumb", thumb},
             {"url", next->url},
             {"title", next->title},
             {"duration", next->duration},
             {"by", next->requester_name}
         });
-        tg_->SendMessage(msg.chat.id, now_playing, MakePlayerMarkup(msg.chat.id, 0, 240));
+        if (wait_msg > 0) {
+            tg_->EditMessageText(msg.chat.id, wait_msg, now_playing, MakePlayerMarkup(msg.chat.id, 0, 240));
+        } else {
+            tg_->SendMessage(msg.chat.id, now_playing, MakePlayerMarkup(msg.chat.id, 0, 240));
+        }
+        return;
+    }
+
+    if (Database::Instance().IsAutoplayEnabled(msg.chat.id)) {
+        if (wait_msg > 0) {
+            tg_->EditMessageText(msg.chat.id, wait_msg, lm.F(msg.chat.id, "autoplay_fetching_next"));
+        } else {
+            wait_msg = tg_->SendMessage(msg.chat.id, lm.F(msg.chat.id, "autoplay_fetching_next"));
+        }
+
+        std::string cur_title = cur.has_value() ? cur->title : "English Song";
+        std::string cur_id = cur.has_value() ? cur->id : "";
+        auto played = qm.GetPlayedHistory(msg.chat.id);
+
+        auto autoTrack = PlatformYouTube::GetRelatedTrack(cur_title, cur_id, played);
+        if (autoTrack.has_value()) {
+            qm.Enqueue(msg.chat.id, *autoTrack);
+            AudioEngine::Instance().StartPlayback(msg.chat.id, autoTrack->url);
+            ChatConfig cfg = Database::Instance().GetChatConfig(msg.chat.id);
+            std::string thumb = "🎵";
+            if (cfg.show_thumbnails && !autoTrack->thumbnail_url.empty()) {
+                thumb = "<a href=\"" + autoTrack->thumbnail_url + "\">🎵</a>";
+            }
+            std::string now_playing = lm.F(msg.chat.id, "stream_now_playing", {
+                {"thumb", thumb},
+                {"url", autoTrack->url},
+                {"title", autoTrack->title},
+                {"duration", autoTrack->duration},
+                {"by", autoTrack->requester_name}
+            });
+            if (wait_msg > 0) {
+                tg_->EditMessageText(msg.chat.id, wait_msg, now_playing, MakePlayerMarkup(msg.chat.id, 0, 240));
+            } else {
+                tg_->SendMessage(msg.chat.id, now_playing, MakePlayerMarkup(msg.chat.id, 0, 240));
+            }
+            return;
+        }
+    }
+
+    AudioEngine::Instance().StopPlayback(msg.chat.id);
+    std::string finished = lm.F(msg.chat.id, "stream_queue_finished");
+    if (wait_msg > 0) {
+        tg_->EditMessageText(msg.chat.id, wait_msg, finished);
     } else {
-        AudioEngine::Instance().StopPlayback(msg.chat.id);
-        auto& lm = LocalizationManager::Instance();
-        std::string finished = lm.F(msg.chat.id, "stream_queue_finished");
         tg_->SendMessage(msg.chat.id, finished);
     }
 }
@@ -574,6 +669,46 @@ void BotEngine::HandleQueue(const TgMessage& msg) {
         }
     }
     tg_->SendMessage(msg.chat.id, ss.str());
+}
+
+void BotEngine::HandleAutoplay(const TgMessage& msg, const std::string& args) {
+    int64_t chat_id = msg.chat.id;
+    if (args == "enable" || args == "on" || args == "true" || args == "1") {
+        Database::Instance().SetAutoplay(chat_id, true);
+        tg_->SendMessage(chat_id, GetAutoplayMessage(true), BuildAutoplayMarkup(chat_id, true));
+        return;
+    }
+    if (args == "disable" || args == "off" || args == "false" || args == "0") {
+        Database::Instance().SetAutoplay(chat_id, false);
+        tg_->SendMessage(chat_id, GetAutoplayMessage(false), BuildAutoplayMarkup(chat_id, false));
+        return;
+    }
+
+    bool cur = Database::Instance().IsAutoplayEnabled(chat_id);
+    tg_->SendMessage(chat_id, GetAutoplayMessage(cur), BuildAutoplayMarkup(chat_id, cur));
+}
+
+void BotEngine::HandleNoThumb(const TgMessage& msg, const std::string& args) {
+    auto& lm = LocalizationManager::Instance();
+    int64_t chat_id = msg.chat.id;
+    bool cur = Database::Instance().IsThumbnailsEnabled(chat_id);
+
+    if (args == "enable" || args == "on") {
+        Database::Instance().SetThumbnails(chat_id, false);
+        std::string text = lm.F(chat_id, "nothumb_updated", {{"action", "disabled"}});
+        tg_->SendMessage(chat_id, text);
+        return;
+    }
+    if (args == "disable" || args == "off") {
+        Database::Instance().SetThumbnails(chat_id, true);
+        std::string text = lm.F(chat_id, "nothumb_updated", {{"action", "enabled"}});
+        tg_->SendMessage(chat_id, text);
+        return;
+    }
+
+    std::string action = cur ? "enabled" : "disabled";
+    std::string text = lm.F(chat_id, "nothumb_status", {{"action", action}});
+    tg_->SendMessage(chat_id, text);
 }
 
 void BotEngine::HandleLoop(const TgMessage& msg) {
@@ -738,6 +873,19 @@ void BotEngine::ProcessCallback(const TgCallbackQuery& cb) {
         return;
     }
 
+    if (data.rfind("autoplay:", 0) == 0) {
+        auto first_colon = data.find(':');
+        auto second_colon = data.find(':', first_colon + 1);
+        if (second_colon != std::string::npos) {
+            std::string action = data.substr(first_colon + 1, second_colon - first_colon - 1);
+            bool newState = (action == "on");
+            Database::Instance().SetAutoplay(chat_id, newState);
+            tg_->AnswerCallbackQuery(cb.id, newState ? "✅ Autoplay enabled!" : "🚫 Autoplay disabled!");
+            tg_->EditMessageText(chat_id, msg_id, GetAutoplayMessage(newState), BuildAutoplayMarkup(chat_id, newState));
+        }
+        return;
+    }
+
     if (data.rfind("room:", 0) == 0) {
         auto first_colon = data.find(':');
         auto second_colon = data.find(':', first_colon + 1);
@@ -750,11 +898,18 @@ void BotEngine::ProcessCallback(const TgCallbackQuery& cb) {
                 AudioEngine::Instance().ResumePlayback(chat_id);
                 tg_->AnswerCallbackQuery(cb.id, "Resumed ▶️");
             } else if (action == "skip") {
-                auto next = QueueManager::Instance().Next(chat_id);
+                auto& qm = QueueManager::Instance();
+                auto cur = qm.GetCurrent(chat_id);
+                auto next = qm.Next(chat_id);
                 if (next.has_value()) {
                     AudioEngine::Instance().StartPlayback(chat_id, next->url);
+                    ChatConfig cfg = Database::Instance().GetChatConfig(chat_id);
+                    std::string thumb = "🎵";
+                    if (cfg.show_thumbnails && !next->thumbnail_url.empty()) {
+                        thumb = "<a href=\"" + next->thumbnail_url + "\">🎵</a>";
+                    }
                     std::string now_playing = lm.F(chat_id, "stream_now_playing", {
-                        {"thumb", "🎵"},
+                        {"thumb", thumb},
                         {"url", next->url},
                         {"title", next->title},
                         {"duration", next->duration},
@@ -762,6 +917,34 @@ void BotEngine::ProcessCallback(const TgCallbackQuery& cb) {
                     });
                     tg_->EditMessageText(chat_id, msg_id, now_playing, MakePlayerMarkup(chat_id, 0, 240));
                     tg_->AnswerCallbackQuery(cb.id, "Skipped ⏭");
+                } else if (Database::Instance().IsAutoplayEnabled(chat_id)) {
+                    std::string cur_title = cur.has_value() ? cur->title : "English Song";
+                    std::string cur_id = cur.has_value() ? cur->id : "";
+                    auto played = qm.GetPlayedHistory(chat_id);
+                    auto autoTrack = PlatformYouTube::GetRelatedTrack(cur_title, cur_id, played);
+                    if (autoTrack.has_value()) {
+                        qm.Enqueue(chat_id, *autoTrack);
+                        AudioEngine::Instance().StartPlayback(chat_id, autoTrack->url);
+                        ChatConfig cfg = Database::Instance().GetChatConfig(chat_id);
+                        std::string thumb = "🎵";
+                        if (cfg.show_thumbnails && !autoTrack->thumbnail_url.empty()) {
+                            thumb = "<a href=\"" + autoTrack->thumbnail_url + "\">🎵</a>";
+                        }
+                        std::string now_playing = lm.F(chat_id, "stream_now_playing", {
+                            {"thumb", thumb},
+                            {"url", autoTrack->url},
+                            {"title", autoTrack->title},
+                            {"duration", autoTrack->duration},
+                            {"by", autoTrack->requester_name}
+                        });
+                        tg_->EditMessageText(chat_id, msg_id, now_playing, MakePlayerMarkup(chat_id, 0, 240));
+                        tg_->AnswerCallbackQuery(cb.id, "Autoplay: Playing Next 📻");
+                    } else {
+                        AudioEngine::Instance().StopPlayback(chat_id);
+                        std::string finished = lm.F(chat_id, "stream_queue_finished");
+                        tg_->EditMessageText(chat_id, msg_id, finished, nullptr);
+                        tg_->AnswerCallbackQuery(cb.id, "Queue Finished");
+                    }
                 } else {
                     AudioEngine::Instance().StopPlayback(chat_id);
                     std::string finished = lm.F(chat_id, "stream_queue_finished");
@@ -800,6 +983,24 @@ void BotEngine::ProcessCallback(const TgCallbackQuery& cb) {
         cfg.clean_mode = !cfg.clean_mode;
         Database::Instance().SetChatConfig(chat_id, cfg);
         tg_->AnswerCallbackQuery(cb.id, cfg.clean_mode ? "Clean Mode ON" : "Clean Mode OFF");
+        tg_->EditMessageText(chat_id, msg_id, "⚙️ <b>Chat Settings:</b>", MakeSettingsMarkup(chat_id));
+        return;
+    }
+
+    if (data == "set_autoplay") {
+        ChatConfig cfg = Database::Instance().GetChatConfig(chat_id);
+        cfg.autoplay = !cfg.autoplay;
+        Database::Instance().SetChatConfig(chat_id, cfg);
+        tg_->AnswerCallbackQuery(cb.id, cfg.autoplay ? "Autoplay ON" : "Autoplay OFF");
+        tg_->EditMessageText(chat_id, msg_id, "⚙️ <b>Chat Settings:</b>", MakeSettingsMarkup(chat_id));
+        return;
+    }
+
+    if (data == "set_thumb") {
+        ChatConfig cfg = Database::Instance().GetChatConfig(chat_id);
+        cfg.show_thumbnails = !cfg.show_thumbnails;
+        Database::Instance().SetChatConfig(chat_id, cfg);
+        tg_->AnswerCallbackQuery(cb.id, cfg.show_thumbnails ? "Thumbnails ON" : "Thumbnails OFF");
         tg_->EditMessageText(chat_id, msg_id, "⚙️ <b>Chat Settings:</b>", MakeSettingsMarkup(chat_id));
         return;
     }

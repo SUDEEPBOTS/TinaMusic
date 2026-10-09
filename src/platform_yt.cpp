@@ -70,6 +70,10 @@ std::optional<Track> PlatformYouTube::SearchTrack(const std::string& query, cons
         t.duration = ss.str();
 
         t.thumbnail_url = j.value("thumbnail", "");
+        if (t.thumbnail_url.empty() && !t.id.empty()) {
+            t.thumbnail_url = "https://i.ytimg.com/vi/" + t.id + "/hqdefault.jpg";
+        }
+
         t.requester_name = requester;
         t.requester_id = requester_id;
         t.platform = "YouTube";
@@ -80,6 +84,55 @@ std::optional<Track> PlatformYouTube::SearchTrack(const std::string& query, cons
         Logger::Error("YOUTUBE", std::string("JSON parsing error: ") + e.what());
         return std::nullopt;
     }
+}
+
+std::optional<Track> PlatformYouTube::GetRelatedTrack(const std::string& current_title, const std::string& current_id, const std::unordered_set<std::string>& played_ids) {
+    std::string clean = SanitizeInput(current_title);
+    if (clean.empty()) return std::nullopt;
+
+    std::string cmd = "yt-dlp -j --default-search \"ytsearch5:\" --no-playlist \"ytsearch5:" + clean + " related\" 2>/dev/null";
+    std::string output = ExecCommand(cmd);
+    if (output.empty()) return std::nullopt;
+
+    std::stringstream ss(output);
+    std::string line;
+    while (std::getline(ss, line)) {
+        if (line.empty() || line.front() != '{') continue;
+        try {
+            auto j = nlohmann::json::parse(line);
+            std::string vid = j.value("id", "");
+            if (vid.empty() || vid == current_id || played_ids.find(vid) != played_ids.end()) {
+                continue;
+            }
+
+            Track t;
+            t.id = vid;
+            t.title = j.value("title", "Related Song");
+            t.url = j.value("webpage_url", "https://youtube.com/watch?v=" + t.id);
+
+            int64_t dur = j.value("duration", 0);
+            t.duration_seconds = dur;
+            int mins = static_cast<int>(dur / 60);
+            int secs = static_cast<int>(dur % 60);
+            std::stringstream dss;
+            dss << mins << ":" << (secs < 10 ? "0" : "") << secs;
+            t.duration = dss.str();
+
+            t.thumbnail_url = j.value("thumbnail", "");
+            if (t.thumbnail_url.empty()) {
+                t.thumbnail_url = "https://i.ytimg.com/vi/" + t.id + "/hqdefault.jpg";
+            }
+
+            t.requester_name = "🎵 ᴀᴜᴛᴏᴘʟᴀʏ";
+            t.requester_id = 0;
+            t.platform = "YouTube";
+            t.stream_url = ExtractDirectAudioURL(t.url);
+            return t;
+        } catch (...) {
+            continue;
+        }
+    }
+    return std::nullopt;
 }
 
 std::string PlatformYouTube::ExtractDirectAudioURL(const std::string& video_url) {

@@ -11,6 +11,7 @@ void TestQueueManager() {
     auto& qm = QueueManager::Instance();
     int64_t chat_id = -100999;
     qm.Clear(chat_id);
+    qm.ClearPlayedHistory(chat_id);
 
     Track t;
     t.id = "yt_1";
@@ -22,6 +23,7 @@ void TestQueueManager() {
     assert(qm.QueueSize(chat_id) == 1);
     assert(qm.GetCurrent(chat_id).has_value());
     assert(qm.GetCurrent(chat_id)->title == "Test Track 1");
+    assert(qm.HasPlayed(chat_id, "yt_1"));
 
     qm.SetLoop(chat_id, true);
     assert(qm.IsLooping(chat_id) == true);
@@ -53,10 +55,20 @@ void TestDatabase() {
     ChatConfig cfg;
     cfg.volume = 80;
     cfg.language = "hi";
+    cfg.autoplay = true;
+    cfg.show_thumbnails = false;
     db.SetChatConfig(-100888, cfg);
+
     ChatConfig loaded = db.GetChatConfig(-100888);
     assert(loaded.volume == 80);
     assert(loaded.language == "hi");
+    assert(loaded.autoplay == true);
+    assert(loaded.show_thumbnails == false);
+
+    db.SetAutoplay(-100888, false);
+    assert(!db.IsAutoplayEnabled(-100888));
+    db.SetThumbnails(-100888, true);
+    assert(db.IsThumbnailsEnabled(-100888));
 
     Logger::Info("TEST", "Database tests passed!");
 }
@@ -78,6 +90,25 @@ void TestLocales() {
     assert(startPriv.find("Alice") != std::string::npos);
     assert(startPriv.find("YukkiBot") != std::string::npos);
     assert(startPriv.find("https://yukiapi.site/file/iCggpP12") != std::string::npos);
+
+    std::string nowPlaying = lm.Get("en", "stream_now_playing", {
+        {"thumb", "<a href=\"https://i.ytimg.com/vi/abc/hqdefault.jpg\">🎵</a>"},
+        {"url", "https://youtube.com/watch?v=abc"},
+        {"title", "Faded"},
+        {"duration", "3:32"},
+        {"by", "Shadow"}
+    });
+    assert(!nowPlaying.empty());
+    assert(nowPlaying.find("Faded") != std::string::npos);
+    assert(nowPlaying.find("hqdefault.jpg") != std::string::npos);
+
+    std::string queueFinished = lm.Get("en", "stream_queue_finished");
+    assert(!queueFinished.empty());
+    assert(queueFinished.find("ǫᴜєᴜє ғɪηɪsʜєᴅ") != std::string::npos);
+
+    std::string autoFetch = lm.Get("en", "autoplay_fetching_next");
+    assert(!autoFetch.empty());
+    assert(autoFetch.find("ᴧᴜᴛσᴘʟᴧʏ") != std::string::npos);
 
     std::string hiPing = lm.Get("hi", "ping_start");
     assert(!hiPing.empty());
