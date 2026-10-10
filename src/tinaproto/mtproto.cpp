@@ -473,7 +473,7 @@ std::string MtprotoClient::JoinGroupCall(int64_t chat_id, const std::string& loc
 
     TlWriter w;
     w.PutUint32(0xb132ff7b);
-    w.PutUint32(0);
+    w.PutUint32(4);
     w.PutUint32(0xd8aa840f);
     w.PutInt64(call.id);
     w.PutInt64(call.access_hash);

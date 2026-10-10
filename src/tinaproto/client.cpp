@@ -25,9 +25,9 @@ TinaProtoClient::~TinaProtoClient() = default;
 std::string TinaProtoClient::BuildFfmpegCommand(const std::string& url) {
     std::string base = "ffmpeg ";
     if (url.rfind("http://", 0) == 0 || url.rfind("https://", 0) == 0) {
-        base += "-re -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 ";
+        base += "-reconnect 1 -reconnect_at_eof 1 -reconnect_streamed 1 -reconnect_delay_max 2 ";
     }
-    base += "-v warning -i \"" + url + "\" -f s16le -ac 2 -ar 96000 pipe:1";
+    base += "-v quiet -i \"" + url + "\" -f s16le -ac 2 -ar 48000 pipe:1";
     return base;
 }
 

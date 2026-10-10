@@ -114,7 +114,7 @@ bool VoiceBinding::SetStreamSources(int64_t chat_id, const std::string& shell_cm
     ntg_audio_description_struct audio_desc{};
     audio_desc.mediaSource = NTG_SHELL;
     audio_desc.input = const_cast<char*>(shell_cmd.c_str());
-    audio_desc.sampleRate = 96000;
+    audio_desc.sampleRate = 48000;
     audio_desc.channelCount = 2;
     audio_desc.keepOpen = false;
 
