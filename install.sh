@@ -61,6 +61,7 @@ install_deps_debian() {
         ffmpeg \
         libcurl4-openssl-dev \
         libyaml-cpp-dev \
+        nlohmann-json3-dev \
         zlib1g-dev \
         golang-go \
         unzip
@@ -77,6 +78,7 @@ install_deps_fedora() {
         ffmpeg \
         libcurl-devel \
         yaml-cpp-devel \
+        json-devel \
         zlib-devel \
         golang \
         unzip
@@ -91,6 +93,7 @@ install_deps_arch() {
         curl \
         ffmpeg \
         yaml-cpp \
+        nlohmann-json \
         go \
         unzip
 }
