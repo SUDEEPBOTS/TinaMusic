@@ -209,7 +209,8 @@ TinaMusic is licensed under the **GNU Affero General Public License v3.0 (AGPL-3
 
 ```
 TinaMusic - Telegram's First Native C++20 Music Engine
-Copyright (C) 2026 TheTeamVivek / TinaMusic Contributors
+Copyright (C) 2026 SUDEEPBOTS / TinaMusic Contributors
+Support: https://t.me/Z0iiw
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as published by

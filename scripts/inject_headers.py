@@ -17,8 +17,8 @@ BIG_CPP_GO_HEADER = """/*
  *
  * Project: TinaMusic - Telegram's First Native C++20 Music Bot Engine
  * Architecture: Native C++20 Core + Go MTProto WebRTC Voice Bridge
- * Copyright (C) 2026 TheTeamVivek / SUDEEPBOTS / TinaMusic Contributors
- * All Rights Reserved.
+ * Copyright (C) 2026 SUDEEPBOTS / TinaMusic Contributors
+ * Support: https://t.me/Z0iiw
  *
  * ----------------------------------------------------------------------------
  * LEGAL NOTICE & LICENSE (GNU Affero General Public License v3.0):
@@ -58,8 +58,8 @@ BIG_SH_HEADER = """# ===========================================================
 #
 # Project: TinaMusic - Telegram's First Native C++20 Music Bot Engine
 # Architecture: Native C++20 Core + Go MTProto WebRTC Voice Bridge
-# Copyright (C) 2026 TheTeamVivek / SUDEEPBOTS / TinaMusic Contributors
-# All Rights Reserved.
+# Copyright (C) 2026 SUDEEPBOTS / TinaMusic Contributors
+# Support: https://t.me/Z0iiw
 #
 # ----------------------------------------------------------------------------
 # LEGAL NOTICE & LICENSE (GNU Affero General Public License v3.0):

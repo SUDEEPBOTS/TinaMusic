@@ -10,8 +10,8 @@
  *
  * Project: TinaMusic - Telegram's First Native C++20 Music Bot Engine
  * Architecture: Native C++20 Core + Go MTProto WebRTC Voice Bridge
- * Copyright (C) 2026 TheTeamVivek / SUDEEPBOTS / TinaMusic Contributors
- * All Rights Reserved.
+ * Copyright (C) 2026 SUDEEPBOTS / TinaMusic Contributors
+ * Support: https://t.me/Z0iiw
  *
  * ----------------------------------------------------------------------------
  * LEGAL NOTICE & LICENSE (GNU Affero General Public License v3.0):
@@ -143,8 +143,8 @@ std::string BotEngine::GetDiskUsageString() {
 nlohmann::json BotEngine::MakeStartMarkup(int64_t chat_id) {
     auto& lm = LocalizationManager::Instance();
     std::string bot_user = tg_->GetBotUsername();
-    std::string support_channel = config_.support_channel.empty() ? "https://t.me/TheTeamVivek" : config_.support_channel;
-    std::string support_chat = config_.support_chat.empty() ? "https://t.me/TheTeamVk" : config_.support_chat;
+    std::string support_channel = config_.support_channel.empty() ? "https://t.me/Z0iiw" : config_.support_channel;
+    std::string support_chat = config_.support_chat.empty() ? "https://t.me/Z0iiw" : config_.support_chat;
 
     return {
         {"inline_keyboard", {
@@ -194,7 +194,7 @@ nlohmann::json BotEngine::MakeBackMarkup(int64_t chat_id) {
 
 nlohmann::json BotEngine::MakeSupportMarkup(int64_t chat_id) {
     auto& lm = LocalizationManager::Instance();
-    std::string support_chat = config_.support_chat.empty() ? "https://t.me/TheTeamVk" : config_.support_chat;
+    std::string support_chat = config_.support_chat.empty() ? "https://t.me/Z0iiw" : config_.support_chat;
     return {
         {"inline_keyboard", {
             {

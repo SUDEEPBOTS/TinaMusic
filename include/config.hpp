@@ -10,8 +10,8 @@
  *
  * Project: TinaMusic - Telegram's First Native C++20 Music Bot Engine
  * Architecture: Native C++20 Core + Go MTProto WebRTC Voice Bridge
- * Copyright (C) 2026 TheTeamVivek / SUDEEPBOTS / TinaMusic Contributors
- * All Rights Reserved.
+ * Copyright (C) 2026 SUDEEPBOTS / TinaMusic Contributors
+ * Support: https://t.me/Z0iiw
  *
  * ----------------------------------------------------------------------------
  * LEGAL NOTICE & LICENSE (GNU Affero General Public License v3.0):
@@ -53,8 +53,8 @@ struct AppConfig {
     int64_t log_group_id{0};
     std::string string_session;
     std::string session_type{"pyrogram"};
-    std::string support_chat{"https://t.me/TheTeamVk"};
-    std::string support_channel{"https://t.me/TheTeamVivek"};
+    std::string support_chat{"https://t.me/Z0iiw"};
+    std::string support_channel{"https://t.me/Z0iiw"};
     std::string default_lang{"en"};
     int duration_limit{4200};
     int max_queue_size{24};

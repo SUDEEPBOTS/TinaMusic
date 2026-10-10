@@ -2,8 +2,8 @@
     "name": "TinaMusic",
     "description": "Telegram's First Native C++20 Telegram Music Bot engine streaming audio into group voice chats.",
     "keywords": ["telegram", "bot", "music", "cpp", "voice-chat", "ntgcalls", "tinamusic"],
-    "repository": "https://github.com/TheTeamVivek/YukkiMusic",
-    "website": "https://github.com/TheTeamVivek/YukkiMusic",
+    "repository": "https://github.com/SUDEEPBOTS/TinaMusic",
+    "website": "https://github.com/SUDEEPBOTS/TinaMusic",
     "stack": "container",
     "env": {
         "API_ID": {
@@ -74,12 +74,12 @@
         },
         "SUPPORT_CHAT": {
             "description": "The URL of your support chat.",
-            "value": "https://t.me/TheTeamVk",
+            "value": "https://t.me/Z0iiw",
             "required": false
         },
         "SUPPORT_CHANNEL": {
             "description": "The URL of your support channel.",
-            "value": "https://t.me/TheTeamVivek",
+            "value": "https://t.me/Z0iiw",
             "required": false
         },
         "COOKIES_LINK": {

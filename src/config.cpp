@@ -10,8 +10,8 @@
  *
  * Project: TinaMusic - Telegram's First Native C++20 Music Bot Engine
  * Architecture: Native C++20 Core + Go MTProto WebRTC Voice Bridge
- * Copyright (C) 2026 TheTeamVivek / SUDEEPBOTS / TinaMusic Contributors
- * All Rights Reserved.
+ * Copyright (C) 2026 SUDEEPBOTS / TinaMusic Contributors
+ * Support: https://t.me/Z0iiw
  *
  * ----------------------------------------------------------------------------
  * LEGAL NOTICE & LICENSE (GNU Affero General Public License v3.0):
@@ -104,8 +104,8 @@ AppConfig ConfigLoader::Load(const std::string& env_path) {
 
     cfg.string_session = GetEnvVar("STRING_SESSIONS", GetEnvVar("STRING_SESSION", ""));
     cfg.session_type = GetEnvVar("SESSION_TYPE", "pyrogram");
-    cfg.support_chat = GetEnvVar("SUPPORT_CHAT", "https://t.me/TheTeamVk");
-    cfg.support_channel = GetEnvVar("SUPPORT_CHANNEL", "https://t.me/TheTeamVivek");
+    cfg.support_chat = GetEnvVar("SUPPORT_CHAT", "https://t.me/Z0iiw");
+    cfg.support_channel = GetEnvVar("SUPPORT_CHANNEL", "https://t.me/Z0iiw");
     cfg.default_lang = GetEnvVar("DEFAULT_LANG", "en");
 
     std::string dur_str = GetEnvVar("DURATION_LIMIT", "4200");
