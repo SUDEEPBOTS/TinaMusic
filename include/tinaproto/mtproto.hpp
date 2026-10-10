@@ -59,7 +59,7 @@ private:
 
     bool SendPacket(const std::vector<uint8_t>& payload, int32_t seq_no, int64_t msg_id);
     std::vector<uint8_t> ReceivePacket();
-    std::vector<uint8_t> ExtractRpcResult(const std::vector<uint8_t>& payload);
+    std::vector<uint8_t> ExtractRpcResult(const std::vector<uint8_t>& payload, bool& need_resend);
 };
 
 }

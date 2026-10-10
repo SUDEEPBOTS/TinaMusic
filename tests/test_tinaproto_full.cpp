@@ -34,5 +34,15 @@ int main() {
     }
 
     std::cout << "[TEST] SUCCESS: Found GroupCall! ID: " << call_opt->id << " Hash: " << call_opt->access_hash << std::endl;
+
+    std::cout << "[TEST] Testing TinaProtoClient::Play for -1002324064857..." << std::endl;
+    auto play_res = tinaproto::TinaProtoClient::GetInstance().Play(-1002324064857, "https://samplelib.com/lib/preview/mp3/sample-3s.mp3");
+    if (!play_res.ok) {
+        std::cerr << "[TEST] Play FAILED: [" << play_res.error << "] " << play_res.detail << std::endl;
+        return 1;
+    }
+
+    std::cout << "[TEST] Play SUCCESS! Connected and streaming audio in VC!" << std::endl;
+    tinaproto::TinaProtoClient::GetInstance().Stop(-1002324064857);
     return 0;
 }
