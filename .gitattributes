@@ -1,0 +1,16 @@
+# GitHub Linguist Overrides - TinaMusic 100% Pure C++20
+# Ensure all headers and sources are strictly accounted as C++
+*.h linguist-language=C++
+*.hpp linguist-language=C++
+*.cpp linguist-language=C++
+
+# Exclude non-C++ build/scripting files from repository language statistics
+*.sh linguist-detectable=false
+Dockerfile linguist-detectable=false
+Makefile linguist-detectable=false
+*.md linguist-detectable=false
+*.json linguist-detectable=false
+*.yaml linguist-detectable=false
+*.yml linguist-detectable=false
+vendor/** linguist-vendored
+tests/** linguist-vendored
