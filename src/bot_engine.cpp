@@ -720,7 +720,8 @@ void BotEngine::HandlePlay(const TgMessage& msg, const std::string& query) {
     }
 
     if (was_empty) {
-        AudioEngine::Instance().StartPlayback(msg.chat.id, track.url);
+        std::string streamUrl = track.stream_url.empty() ? track.url : track.stream_url;
+        AudioEngine::Instance().StartPlayback(msg.chat.id, streamUrl);
         std::string now_playing = lm.F(msg.chat.id, "stream_now_playing", {
             {"thumb", thumb},
             {"url", track.url},
@@ -759,7 +760,8 @@ void BotEngine::HandleFPlay(const TgMessage& msg, const std::string& query) {
 
     Track track = trackOpt.value();
     QueueManager::Instance().EnqueueForce(msg.chat.id, track);
-    AudioEngine::Instance().StartPlayback(msg.chat.id, track.url);
+    std::string streamUrl = track.stream_url.empty() ? track.url : track.stream_url;
+    AudioEngine::Instance().StartPlayback(msg.chat.id, streamUrl);
 
     ChatConfig cfg = Database::Instance().GetChatConfig(msg.chat.id);
     std::string thumb = (cfg.show_thumbnails && !track.thumbnail_url.empty()) ? "<a href=\"" + track.thumbnail_url + "\">🎵</a>" : "🎵";
@@ -939,7 +941,8 @@ void BotEngine::HandleSkip(const TgMessage& msg) {
 
     auto next = qm.Next(msg.chat.id);
     if (next.has_value()) {
-        AudioEngine::Instance().StartPlayback(msg.chat.id, next->url);
+        std::string streamUrl = next->stream_url.empty() ? next->url : next->stream_url;
+        AudioEngine::Instance().StartPlayback(msg.chat.id, streamUrl);
         ChatConfig cfg = Database::Instance().GetChatConfig(msg.chat.id);
         std::string thumb = "🎵";
         if (cfg.show_thumbnails && !next->thumbnail_url.empty()) {
@@ -974,7 +977,8 @@ void BotEngine::HandleSkip(const TgMessage& msg) {
         auto autoTrack = PlatformYouTube::GetRelatedTrack(cur_title, cur_id, played);
         if (autoTrack.has_value()) {
             qm.Enqueue(msg.chat.id, *autoTrack);
-            AudioEngine::Instance().StartPlayback(msg.chat.id, autoTrack->url);
+            std::string streamUrl = autoTrack->stream_url.empty() ? autoTrack->url : autoTrack->stream_url;
+            AudioEngine::Instance().StartPlayback(msg.chat.id, streamUrl);
             ChatConfig cfg = Database::Instance().GetChatConfig(msg.chat.id);
             std::string thumb = "🎵";
             if (cfg.show_thumbnails && !autoTrack->thumbnail_url.empty()) {
@@ -1812,7 +1816,8 @@ void BotEngine::ProcessCallback(const TgCallbackQuery& cb) {
                 auto cur = qm.GetCurrent(chat_id);
                 auto next = qm.Next(chat_id);
                 if (next.has_value()) {
-                    AudioEngine::Instance().StartPlayback(chat_id, next->url);
+                    std::string streamUrl = next->stream_url.empty() ? next->url : next->stream_url;
+                    AudioEngine::Instance().StartPlayback(chat_id, streamUrl);
                     ChatConfig cfg = Database::Instance().GetChatConfig(chat_id);
                     std::string thumb = "🎵";
                     if (cfg.show_thumbnails && !next->thumbnail_url.empty()) {
@@ -1834,7 +1839,8 @@ void BotEngine::ProcessCallback(const TgCallbackQuery& cb) {
                     auto autoTrack = PlatformYouTube::GetRelatedTrack(cur_title, cur_id, played);
                     if (autoTrack.has_value()) {
                         qm.Enqueue(chat_id, *autoTrack);
-                        AudioEngine::Instance().StartPlayback(chat_id, autoTrack->url);
+                        std::string streamUrl = autoTrack->stream_url.empty() ? autoTrack->url : autoTrack->stream_url;
+                        AudioEngine::Instance().StartPlayback(chat_id, streamUrl);
                         ChatConfig cfg = Database::Instance().GetChatConfig(chat_id);
                         std::string thumb = "🎵";
                         if (cfg.show_thumbnails && !autoTrack->thumbnail_url.empty()) {

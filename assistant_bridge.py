@@ -33,6 +33,8 @@ if not session_str or not api_id or not api_hash:
 app = Client("yukki_assistant", api_id=api_id, api_hash=api_hash, session_string=session_str, in_memory=True)
 pytgcalls = PyTgCalls(app)
 active_calls = set()
+cached_me = None
+joined_chats = set()
 
 @pytgcalls.on_update()
 async def on_stream_end(client, update):
@@ -43,7 +45,7 @@ async def on_stream_end(client, update):
         try:
             import aiohttp
             async with aiohttp.ClientSession() as session:
-                await session.post("http://127.0.0.1:8056/stream_end", json={"chat_id": chat_id}, timeout=3)
+                await session.post("http://127.0.0.1:8056/stream_end", json={"chat_id": chat_id}, timeout=2)
         except Exception:
             pass
 
@@ -55,29 +57,42 @@ async def handle_play(request):
         if not chat_id or not url:
             return web.json_response({"ok": False, "error": "Missing chat_id or url"}, status=400)
 
-        try:
-            me = await app.get_me()
-            try:
-                await app.get_chat_member(chat_id, me.id)
-            except Exception:
-                try:
-                    chat = await app.get_chat(chat_id)
-                    if chat.username:
-                        await app.join_chat(chat.username)
-                    elif getattr(chat, "invite_link", None):
-                        await app.join_chat(chat.invite_link)
-                except Exception:
-                    pass
-        except Exception:
-            pass
-
         stream = MediaStream(url, audio_parameters=AudioQuality.HIGH)
-        await pytgcalls.play(chat_id, stream)
-        active_calls.add(chat_id)
-        print(f"[ASSISTANT] Playing in VC for chat {chat_id}: {url}")
-        return web.json_response({"ok": True})
+
+        if chat_id not in joined_chats:
+            try:
+                chat = await app.get_chat(chat_id)
+                if chat.username:
+                    try:
+                        await app.join_chat(chat.username)
+                    except Exception:
+                        pass
+                joined_chats.add(chat_id)
+            except Exception:
+                pass
+
+        try:
+            await pytgcalls.play(chat_id, stream)
+            active_calls.add(chat_id)
+            print(f"[ASSISTANT] Fast playback started for chat {chat_id}")
+            return web.json_response({"ok": True})
+        except Exception as play_err:
+            err_msg = str(play_err)
+            try:
+                chat = await app.get_chat(chat_id)
+                if getattr(chat, "invite_link", None):
+                    await app.join_chat(chat.invite_link)
+                elif chat.username:
+                    await app.join_chat(chat.username)
+                await pytgcalls.play(chat_id, stream)
+                active_calls.add(chat_id)
+                joined_chats.add(chat_id)
+                return web.json_response({"ok": True})
+            except Exception:
+                pass
+            print(f"[ASSISTANT ERROR] Play failed for {chat_id}: {err_msg}")
+            return web.json_response({"ok": False, "error": err_msg}, status=500)
     except Exception as e:
-        print(f"[ASSISTANT ERROR] Play failed for {data.get('chat_id')}: {e}")
         return web.json_response({"ok": False, "error": str(e)}, status=500)
 
 async def handle_pause(request):
@@ -119,24 +134,27 @@ async def handle_volume(request):
         return web.json_response({"ok": False, "error": str(e)}, status=500)
 
 async def handle_status(request):
-    me = await app.get_me()
+    global cached_me
+    if not cached_me:
+        cached_me = await app.get_me()
     return web.json_response({
         "ok": True,
-        "assistant_id": me.id,
-        "assistant_name": me.first_name,
-        "assistant_username": me.username,
+        "assistant_id": cached_me.id,
+        "assistant_name": cached_me.first_name,
+        "assistant_username": cached_me.username,
         "active_calls": list(active_calls)
     })
 
 async def main():
+    global cached_me
     print("[ASSISTANT] Starting Pyrogram and PyTgCalls MTProto engine...")
     await pytgcalls.start()
-    me = await app.get_me()
-    print(f"[ASSISTANT] Logged in as: {me.first_name} (@{me.username}) [ID: {me.id}]")
+    cached_me = await app.get_me()
+    print(f"[ASSISTANT] Logged in as: {cached_me.first_name} (@{cached_me.username}) [ID: {cached_me.id}]")
 
     if logger_id != 0:
         try:
-            await app.send_message(logger_id, f"⚡ <b>Yukki Assistant Online</b>: @{me.username} (ID: {me.id})\n<i>Voice chat engine ready!</i>")
+            await app.send_message(logger_id, f"⚡ <b>Yukki Assistant Online</b>: @{cached_me.username} (ID: {cached_me.id})\n<i>Voice chat engine ready!</i>")
         except Exception:
             pass
 

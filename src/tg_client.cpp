@@ -38,6 +38,10 @@ std::string TelegramClient::PerformRequest(const std::string& method, const nloh
     CURLcode res = curl_easy_perform(curl);
     if (res != CURLE_OK) {
         Logger::Error("TELEGRAM", std::string("Curl request failed: ") + curl_easy_strerror(res));
+    } else if (!response_string.empty()) {
+        if (response_string.find("\"ok\":false") != std::string::npos || response_string.find("\"ok\": false") != std::string::npos) {
+            Logger::Warn("TELEGRAM", "API Error [" + method + "]: " + response_string);
+        }
     }
 
     curl_slist_free_all(headers);
