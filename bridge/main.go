@@ -98,8 +98,10 @@ func getMediaDescription(url string) ntgcalls.MediaDescription {
 func handlePlay(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var req struct {
-		ChatID int64  `json:"chat_id"`
-		URL    string `json:"url"`
+		ChatID     int64  `json:"chat_id"`
+		URL        string `json:"url"`
+		InviteLink string `json:"invite_link"`
+		Username   string `json:"username"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": "BAD_REQUEST", "detail": err.Error()})
@@ -113,11 +115,49 @@ func handlePlay(w http.ResponseWriter, r *http.Request) {
 	desc := getMediaDescription(req.URL)
 	err := ass.Ntg.Play(req.ChatID, desc)
 	if err != nil {
-		gologging.ErrorF("[AUDIO] Play failed for %d: %v", req.ChatID, err)
 		errStr := err.Error()
+		gologging.WarnF("[AUDIO] Play initial attempt for %d failed: %v", req.ChatID, err)
+		if strings.Contains(strings.ToLower(errStr), "missing from cache") || strings.Contains(strings.ToLower(errStr), "no channel with id") || strings.Contains(strings.ToLower(errStr), "no chat with id") {
+			gologging.InfoF("[AUDIO] Chat %d not in cache. Attempting auto-join / cache resolution...", req.ChatID)
+			joined := false
+			if req.InviteLink != "" {
+				_, jerr := ass.Client.JoinChannel(req.InviteLink)
+				if jerr == nil {
+					joined = true
+					gologging.InfoF("[AUDIO] Auto-joined chat %d via invite link", req.ChatID)
+				} else {
+					gologging.WarnF("[AUDIO] Auto-join via invite link failed: %v", jerr)
+				}
+			}
+			if !joined && req.Username != "" {
+				target := req.Username
+				if !strings.HasPrefix(target, "@") {
+					target = "@" + target
+				}
+				_, jerr := ass.Client.JoinChannel(target)
+				if jerr == nil {
+					joined = true
+					gologging.InfoF("[AUDIO] Auto-joined chat %d via username %s", req.ChatID, target)
+				} else {
+					gologging.WarnF("[AUDIO] Auto-join via username failed: %v", jerr)
+				}
+			}
+			if !joined {
+				_, _ = ass.Client.GetDialogs(&telegram.DialogOptions{Limit: 100})
+			}
+			time.Sleep(1 * time.Second)
+			err = ass.Ntg.Play(req.ChatID, desc)
+		}
+	}
+
+	if err != nil {
+		errStr := err.Error()
+		gologging.ErrorF("[AUDIO] Final play failed for %d: %v", req.ChatID, err)
 		errCode := "PLAY_FAILED"
 		if strings.Contains(strings.ToLower(errStr), "group call") || strings.Contains(errStr, "GROUPCALL_INVALID") {
 			errCode = "NO_ACTIVE_GROUP_CALL"
+		} else if strings.Contains(strings.ToLower(errStr), "missing from cache") || strings.Contains(strings.ToLower(errStr), "no channel with id") || strings.Contains(strings.ToLower(errStr), "no chat with id") {
+			errCode = "ASSISTANT_NOT_IN_CHAT"
 		}
 		json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": errCode, "detail": errStr})
 		return
@@ -128,6 +168,44 @@ func handlePlay(w http.ResponseWriter, r *http.Request) {
 	activeMu.Unlock()
 
 	gologging.InfoF("[AUDIO] Native playback started for chat %d", req.ChatID)
+	json.NewEncoder(w).Encode(map[string]any{"ok": true})
+}
+
+func handleJoin(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	var req struct {
+		ChatID     int64  `json:"chat_id"`
+		InviteLink string `json:"invite_link"`
+		Username   string `json:"username"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": "BAD_REQUEST"})
+		return
+	}
+
+	var joinErr error
+	if req.InviteLink != "" {
+		_, joinErr = ass.Client.JoinChannel(req.InviteLink)
+	} else if req.Username != "" {
+		target := req.Username
+		if !strings.HasPrefix(target, "@") {
+			target = "@" + target
+		}
+		_, joinErr = ass.Client.JoinChannel(target)
+	} else if req.ChatID != 0 {
+		_, joinErr = ass.Client.JoinChannel(req.ChatID)
+	} else {
+		json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": "MISSING_PARAMS"})
+		return
+	}
+
+	if joinErr != nil {
+		gologging.WarnF("[ASSISTANT] Join failed: %v", joinErr)
+		json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": joinErr.Error()})
+		return
+	}
+
+	gologging.InfoF("[ASSISTANT] Successfully joined chat %d", req.ChatID)
 	json.NewEncoder(w).Encode(map[string]any{"ok": true})
 }
 
@@ -253,6 +331,12 @@ func main() {
 
 	gologging.InfoF("[SYSTEM] [STARTUP] Assistant identity verified: @%s (ID: %d)", ass.Self.Username, ass.Self.ID)
 
+	go func() {
+		time.Sleep(2 * time.Second)
+		_, _ = ass.Client.GetDialogs(&telegram.DialogOptions{Limit: 100})
+		gologging.Info("[SYSTEM] [STARTUP] Assistant dialogs and channels pre-cached")
+	}()
+
 	ass.Ntg.OnStreamEnd(func(chatID int64, streamType ntgcalls.StreamType, _ ntgcalls.StreamDevice) {
 		if streamType == ntgcalls.VideoStream {
 			return
@@ -268,6 +352,7 @@ func main() {
 	})
 
 	http.HandleFunc("/play", handlePlay)
+	http.HandleFunc("/join", handleJoin)
 	http.HandleFunc("/pause", handlePause)
 	http.HandleFunc("/resume", handleResume)
 	http.HandleFunc("/leave", handleLeave)

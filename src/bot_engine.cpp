@@ -441,6 +441,8 @@ void BotEngine::ProcessMessage(const TgMessage& msg) {
                cmd == "/cfplay" || cmd == "/fcplay" || cmd == "/cforceplay" || cmd == "/cplayforce" ||
                cmd == "/fvcplay" || cmd == "/fvcpay" || cmd == "/vcplayforce") {
         HandleFPlay(msg, args);
+    } else if (cmd == "/userbot" || cmd == "/assistant" || cmd == "/userbotjoin" || cmd == "/assistantjoin" || cmd == "/join" || cmd == "/cjoin") {
+        HandleUserbotJoin(msg);
     } else if (cmd == "/pause" || cmd == "/cpause") {
         HandlePause(msg);
     } else if (cmd == "/resume" || cmd == "/cresume") {
@@ -758,20 +760,43 @@ void BotEngine::HandlePlay(const TgMessage& msg, const std::string& query) {
 
     if (!is_currently_playing) {
         std::string streamUrl = track.stream_url.empty() ? track.url : track.stream_url;
-        auto result = AudioEngine::Instance().StartPlayback(msg.chat.id, streamUrl);
+        std::string invite_link = tg_->ExportChatInviteLink(msg.chat.id);
+        std::string chat_uname = msg.chat.username;
+        auto result = AudioEngine::Instance().StartPlayback(msg.chat.id, streamUrl, 0, 1.0, 100, invite_link, chat_uname);
         if (!result.ok) {
             qm.Clear(msg.chat.id);
             std::string err_text;
             if (result.error == "NO_ACTIVE_GROUP_CALL") {
                 err_text = lm.F(msg.chat.id, "err_no_active_voicechat");
-            } else if (result.error == "ASSISTANT_JOIN_FAILED") {
-                err_text = lm.F(msg.chat.id, "err_assistant_invite_failed", {{"error", result.detail}});
+                if (err_text == "[err_no_active_voicechat]" || err_text.empty()) {
+                    err_text = "<blockquote>⚠️ <b>No active Voice Chat found in this group!</b>\n\n<i>Please start a Video/Voice Chat in group settings and try again.</i></blockquote>";
+                }
+                if (wait_id > 0) tg_->EditMessageText(msg.chat.id, wait_id, err_text);
+                else tg_->SendMessage(msg.chat.id, err_text);
+            } else if (result.error == "ASSISTANT_NOT_IN_CHAT" || result.detail.find("missing from cache") != std::string::npos || result.detail.find("no channel with id") != std::string::npos || result.detail.find("no chat with id") != std::string::npos) {
+                std::string ass_user = AudioEngine::Instance().GetAssistantUsername();
+                if (ass_user.empty()) ass_user = "Yzcxxy";
+                err_text = "<blockquote>⚠️ <b>Assistant is not in this group!</b>\n\n"
+                           "<i>Please add our Assistant to this group and grant it invite/voice permissions so it can stream audio.</i></blockquote>";
+                nlohmann::json kb = {
+                    {"inline_keyboard", {
+                        {
+                            {{"text", "➕ Add Assistant (@" + ass_user + ")", "url", "https://t.me/" + ass_user + "?startgroup=true"}},
+                            {{"text", "💬 Support", "url", "https://t.me/Z0iiw"}}
+                        }
+                    }}
+                };
+                if (wait_id > 0) tg_->EditMessageText(msg.chat.id, wait_id, err_text, kb);
+                else tg_->SendMessage(msg.chat.id, err_text, kb);
             } else {
                 std::string err_detail = result.detail.empty() ? result.error : result.detail;
                 err_text = lm.F(msg.chat.id, "play_failed", {{"error", err_detail}});
+                if (err_text == "[play_failed]" || err_text.empty()) {
+                    err_text = "<blockquote>❌ <b>Playback Error:</b> <code>" + err_detail + "</code></blockquote>";
+                }
+                if (wait_id > 0) tg_->EditMessageText(msg.chat.id, wait_id, err_text);
+                else tg_->SendMessage(msg.chat.id, err_text);
             }
-            if (wait_id > 0) tg_->EditMessageText(msg.chat.id, wait_id, err_text);
-            else tg_->SendMessage(msg.chat.id, err_text);
             return;
         }
 
@@ -834,16 +859,39 @@ void BotEngine::HandleFPlay(const TgMessage& msg, const std::string& query) {
 
     Track track = trackOpt.value();
     std::string streamUrl = track.stream_url.empty() ? track.url : track.stream_url;
-    auto result = AudioEngine::Instance().StartPlayback(msg.chat.id, streamUrl);
+    std::string invite_link = tg_->ExportChatInviteLink(msg.chat.id);
+    std::string chat_uname = msg.chat.username;
+    auto result = AudioEngine::Instance().StartPlayback(msg.chat.id, streamUrl, 0, 1.0, 100, invite_link, chat_uname);
     if (!result.ok) {
         std::string err_text;
         if (result.error == "NO_ACTIVE_GROUP_CALL") {
             err_text = lm.F(msg.chat.id, "err_no_active_voicechat");
+            if (err_text == "[err_no_active_voicechat]" || err_text.empty()) {
+                err_text = "<blockquote>⚠️ <b>No active Voice Chat found in this group!</b>\n\n<i>Please start a Video/Voice Chat in group settings and try again.</i></blockquote>";
+            }
+            tg_->SendMessage(msg.chat.id, err_text);
+        } else if (result.error == "ASSISTANT_NOT_IN_CHAT" || result.detail.find("missing from cache") != std::string::npos || result.detail.find("no channel with id") != std::string::npos || result.detail.find("no chat with id") != std::string::npos) {
+            std::string ass_user = AudioEngine::Instance().GetAssistantUsername();
+            if (ass_user.empty()) ass_user = "Yzcxxy";
+            err_text = "<blockquote>⚠️ <b>Assistant is not in this group!</b>\n\n"
+                       "<i>Please add our Assistant to this group and grant it invite/voice permissions so it can stream audio.</i></blockquote>";
+            nlohmann::json kb = {
+                {"inline_keyboard", {
+                    {
+                        {{"text", "➕ Add Assistant (@" + ass_user + ")", "url", "https://t.me/" + ass_user + "?startgroup=true"}},
+                        {{"text", "💬 Support", "url", "https://t.me/Z0iiw"}}
+                    }
+                }}
+            };
+            tg_->SendMessage(msg.chat.id, err_text, kb);
         } else {
             std::string err_detail = result.detail.empty() ? result.error : result.detail;
             err_text = lm.F(msg.chat.id, "play_failed", {{"error", err_detail}});
+            if (err_text == "[play_failed]" || err_text.empty()) {
+                err_text = "<blockquote>❌ <b>Playback Error:</b> <code>" + err_detail + "</code></blockquote>";
+            }
+            tg_->SendMessage(msg.chat.id, err_text);
         }
-        tg_->SendMessage(msg.chat.id, err_text);
         return;
     }
 
@@ -860,6 +908,40 @@ void BotEngine::HandleFPlay(const TgMessage& msg, const std::string& query) {
         {"by", requester}
     });
     tg_->SendMessage(msg.chat.id, now_playing, MakePlayerMarkup(msg.chat.id, 0, 240));
+}
+
+void BotEngine::HandleUserbotJoin(const TgMessage& msg) {
+    if (msg.chat.type == "private" || msg.chat.type.empty()) {
+        tg_->SendMessage(msg.chat.id, "<blockquote>⚠️ <b>This command can only be used in groups and channels!</b></blockquote>");
+        return;
+    }
+    std::string invite_link = tg_->ExportChatInviteLink(msg.chat.id);
+    std::string chat_uname = msg.chat.username;
+    int wait_id = tg_->SendMessage(msg.chat.id, "<blockquote>🔄 <i>Inviting Assistant userbot to the chat...</i></blockquote>");
+
+    bool ok = AudioEngine::Instance().JoinChat(msg.chat.id, invite_link, chat_uname);
+    std::string ass_user = AudioEngine::Instance().GetAssistantUsername();
+    if (ass_user.empty()) ass_user = "Yzcxxy";
+
+    if (ok) {
+        std::string text = "<blockquote>✅ <b>Assistant (@" + ass_user + ") has joined successfully!</b>\n\n<i>You can now start voice chat and play music anytime using /play.</i></blockquote>";
+        if (wait_id > 0) tg_->EditMessageText(msg.chat.id, wait_id, text);
+        else tg_->SendMessage(msg.chat.id, text);
+    } else {
+        std::string text = "<blockquote>⚠️ <b>Could not auto-add assistant to group!</b>\n\n"
+                           "<i>The bot may lack 'Invite Users via Link' permission, or the group is private.\n"
+                           "Please manually add the assistant using the button below.</i></blockquote>";
+        nlohmann::json kb = {
+            {"inline_keyboard", {
+                {
+                    {{"text", "➕ Add Assistant (@" + ass_user + ")", "url", "https://t.me/" + ass_user + "?startgroup=true"}},
+                    {{"text", "💬 Support", "url", "https://t.me/Z0iiw"}}
+                }
+            }}
+        };
+        if (wait_id > 0) tg_->EditMessageText(msg.chat.id, wait_id, text, kb);
+        else tg_->SendMessage(msg.chat.id, text, kb);
+    }
 }
 
 void BotEngine::HandlePause(const TgMessage& msg) {
@@ -2132,7 +2214,8 @@ void BotEngine::OnTrackEnded(int64_t chat_id) {
     auto next = qm.Next(chat_id);
     if (next.has_value()) {
         std::string streamUrl = next->stream_url.empty() ? next->url : next->stream_url;
-        auto res = AudioEngine::Instance().StartPlayback(chat_id, streamUrl);
+        std::string invite_link = tg_->ExportChatInviteLink(chat_id);
+        auto res = AudioEngine::Instance().StartPlayback(chat_id, streamUrl, 0, 1.0, 100, invite_link);
         if (res.ok) {
             ChatConfig cfg = Database::Instance().GetChatConfig(chat_id);
             std::string thumb = "🎵";
@@ -2157,7 +2240,8 @@ void BotEngine::OnTrackEnded(int64_t chat_id) {
         if (autoTrack.has_value()) {
             qm.Enqueue(chat_id, *autoTrack);
             std::string streamUrl = autoTrack->stream_url.empty() ? autoTrack->url : autoTrack->stream_url;
-            auto res = AudioEngine::Instance().StartPlayback(chat_id, streamUrl);
+            std::string invite_link = tg_->ExportChatInviteLink(chat_id);
+            auto res = AudioEngine::Instance().StartPlayback(chat_id, streamUrl, 0, 1.0, 100, invite_link);
             if (res.ok) {
                 ChatConfig cfg = Database::Instance().GetChatConfig(chat_id);
                 std::string thumb = "🎵";

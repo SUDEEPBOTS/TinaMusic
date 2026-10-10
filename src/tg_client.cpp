@@ -150,6 +150,7 @@ std::vector<TgUpdate> TelegramClient::GetUpdates(int64_t offset, int timeout) {
                     u.message.chat.id = m["chat"].value("id", 0LL);
                     u.message.chat.type = m["chat"].value("type", "");
                     u.message.chat.title = m["chat"].value("title", "");
+                    u.message.chat.username = m["chat"].value("username", "");
                 }
             }
 
@@ -251,4 +252,17 @@ bool TelegramClient::AnswerCallbackQuery(const std::string& callback_query_id, c
     }
     std::string res = PerformRequest("answerCallbackQuery", payload);
     return !res.empty();
+}
+
+std::string TelegramClient::ExportChatInviteLink(int64_t chat_id) {
+    nlohmann::json payload = {{"chat_id", chat_id}};
+    std::string res = PerformRequest("exportChatInviteLink", payload);
+    if (res.empty()) return "";
+    try {
+        auto j = nlohmann::json::parse(res);
+        if (j.value("ok", false) && j.contains("result")) {
+            return j["result"].get<std::string>();
+        }
+    } catch (...) {}
+    return "";
 }

@@ -55,6 +55,7 @@ struct TgChat {
     int64_t id{0};
     std::string type;
     std::string title;
+    std::string username;
 };
 
 struct TgMessage {
@@ -93,6 +94,7 @@ public:
     bool EditMessageText(int64_t chat_id, int message_id, const std::string& text, const nlohmann::json& markup = nullptr);
     bool DeleteMessage(int64_t chat_id, int message_id);
     bool AnswerCallbackQuery(const std::string& callback_query_id, const std::string& text = "", bool show_alert = false);
+    std::string ExportChatInviteLink(int64_t chat_id);
 
 private:
     std::string bot_token_;

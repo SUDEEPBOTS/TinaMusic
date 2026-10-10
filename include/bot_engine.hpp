@@ -68,6 +68,7 @@ private:
     void HandlePlay(const TgMessage& msg, const std::string& query);
     void HandlePlayer(const TgMessage& msg);
     void HandleFPlay(const TgMessage& msg, const std::string& query);
+    void HandleUserbotJoin(const TgMessage& msg);
     void HandlePause(const TgMessage& msg);
     void HandleResume(const TgMessage& msg);
     void HandleSkip(const TgMessage& msg);

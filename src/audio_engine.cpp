@@ -95,6 +95,9 @@ static PlayResult CallAssistantBridge(const std::string& endpoint, const nlohman
         result.ok = j.value("ok", false);
         result.error = j.value("error", "");
         result.detail = j.value("detail", "");
+        if (result.detail.empty()) {
+            result.detail = response_buf;
+        }
     } catch (...) {
         result.ok = (http_code == 200);
         result.error = "PARSE_ERROR";
@@ -103,8 +106,9 @@ static PlayResult CallAssistantBridge(const std::string& endpoint, const nlohman
     return result;
 }
 
-AudioStreamSession::AudioStreamSession(int64_t chat_id, const std::string& stream_url, int64_t start_offset, double speed, int volume)
+AudioStreamSession::AudioStreamSession(int64_t chat_id, const std::string& stream_url, int64_t start_offset, double speed, int volume, const std::string& invite_link, const std::string& username)
     : chat_id_(chat_id), stream_url_(stream_url), start_offset_(start_offset), speed_(speed), volume_(volume),
+      invite_link_(invite_link), username_(username),
       start_time_(std::chrono::steady_clock::now()) {}
 
 AudioStreamSession::~AudioStreamSession() {
@@ -116,10 +120,14 @@ PlayResult AudioStreamSession::Start() {
         Stop();
     }
 
-    PlayResult res = CallAssistantBridge("play", {
+    nlohmann::json payload = {
         {"chat_id", chat_id_},
         {"url", stream_url_}
-    });
+    };
+    if (!invite_link_.empty()) payload["invite_link"] = invite_link_;
+    if (!username_.empty()) payload["username"] = username_;
+
+    PlayResult res = CallAssistantBridge("play", payload);
 
     if (res.ok) {
         start_time_ = std::chrono::steady_clock::now();
@@ -193,14 +201,14 @@ bool AudioEngine::VerifyFFmpeg() {
     return (ret == 0);
 }
 
-PlayResult AudioEngine::StartPlayback(int64_t chat_id, const std::string& stream_url, int64_t start_offset, double speed, int volume) {
+PlayResult AudioEngine::StartPlayback(int64_t chat_id, const std::string& stream_url, int64_t start_offset, double speed, int volume, const std::string& invite_link, const std::string& username) {
     std::lock_guard<std::mutex> lock(sessions_mutex_);
     auto it = sessions_.find(chat_id);
     if (it != sessions_.end()) {
         it->second->Stop();
     }
 
-    auto session = std::make_shared<AudioStreamSession>(chat_id, stream_url, start_offset, speed, volume);
+    auto session = std::make_shared<AudioStreamSession>(chat_id, stream_url, start_offset, speed, volume, invite_link, username);
     PlayResult res = session->Start();
     if (res.ok) {
         sessions_[chat_id] = session;
@@ -210,6 +218,31 @@ PlayResult AudioEngine::StartPlayback(int64_t chat_id, const std::string& stream
         current_urls_.erase(chat_id);
     }
     return res;
+}
+
+bool AudioEngine::JoinChat(int64_t chat_id, const std::string& invite_link, const std::string& username) {
+    nlohmann::json payload = {{"chat_id", chat_id}};
+    if (!invite_link.empty()) payload["invite_link"] = invite_link;
+    if (!username.empty()) payload["username"] = username;
+    PlayResult res = CallAssistantBridge("join", payload);
+    return res.ok;
+}
+
+std::string AudioEngine::GetAssistantUsername() {
+    if (!assistant_username_.empty()) {
+        return assistant_username_;
+    }
+    PlayResult res = CallAssistantBridge("status", nlohmann::json::object());
+    if (res.ok && !res.detail.empty()) {
+        try {
+            auto j = nlohmann::json::parse(res.detail);
+            if (j.contains("assistant_username")) {
+                assistant_username_ = j["assistant_username"].get<std::string>();
+                return assistant_username_;
+            }
+        } catch (...) {}
+    }
+    return "Yzcxxy";
 }
 
 void AudioEngine::PausePlayback(int64_t chat_id) {
