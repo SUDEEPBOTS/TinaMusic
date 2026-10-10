@@ -9,12 +9,18 @@
 #include <memory>
 #include <vector>
 
+struct PlayResult {
+    bool ok{false};
+    std::string error;
+    std::string detail;
+};
+
 class AudioStreamSession {
 public:
     AudioStreamSession(int64_t chat_id, const std::string& stream_url, int64_t start_offset = 0, double speed = 1.0, int volume = 100);
     ~AudioStreamSession();
 
-    bool Start();
+    PlayResult Start();
     void Pause();
     void Resume();
     void Stop();
@@ -33,7 +39,6 @@ private:
     int64_t start_offset_{0};
     double speed_{1.0};
     int volume_{100};
-    pid_t ffmpeg_pid_{-1};
     std::atomic<bool> is_paused_{false};
     std::atomic<bool> is_muted_{false};
     std::atomic<bool> is_running_{false};
@@ -45,7 +50,7 @@ public:
     static AudioEngine& Instance();
 
     bool VerifyFFmpeg();
-    bool StartPlayback(int64_t chat_id, const std::string& audio_url, int64_t start_offset = 0, double speed = 1.0, int volume = 100);
+    PlayResult StartPlayback(int64_t chat_id, const std::string& audio_url, int64_t start_offset = 0, double speed = 1.0, int volume = 100);
     void PausePlayback(int64_t chat_id);
     void ResumePlayback(int64_t chat_id);
     void StopPlayback(int64_t chat_id);

@@ -10,6 +10,9 @@
 #include <sys/statvfs.h>
 #include <algorithm>
 #include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 BotEngine::BotEngine(const AppConfig& config)
     : config_(config), tg_(std::make_unique<TelegramClient>(config.bot_token)), boot_time_(std::chrono::steady_clock::now()) {
@@ -323,6 +326,8 @@ nlohmann::json BotEngine::MakeLanguageMarkup() {
 
 void BotEngine::Run() {
     is_running_ = true;
+    std::thread ipc_thread(&BotEngine::StartIpcListener, this);
+    ipc_thread.detach();
     Logger::Info("BOT", "Starting Telegram polling loop (C++20 Native Engine)...");
     tg_->TestConnection();
 
@@ -709,19 +714,35 @@ void BotEngine::HandlePlay(const TgMessage& msg, const std::string& query) {
 
     Track track = trackOpt.value();
     auto& qm = QueueManager::Instance();
-    bool was_empty = (qm.QueueSize(msg.chat.id) == 0 && !qm.GetCurrent(msg.chat.id).has_value());
+    bool is_currently_playing = AudioEngine::Instance().IsActive(msg.chat.id) && qm.GetCurrent(msg.chat.id).has_value();
 
-    qm.Enqueue(msg.chat.id, track);
-
-    ChatConfig cfg = Database::Instance().GetChatConfig(msg.chat.id);
-    std::string thumb = "🎵";
-    if (cfg.show_thumbnails && !track.thumbnail_url.empty()) {
-        thumb = "<a href=\"" + track.thumbnail_url + "\">🎵</a>";
-    }
-
-    if (was_empty) {
+    if (!is_currently_playing) {
         std::string streamUrl = track.stream_url.empty() ? track.url : track.stream_url;
-        AudioEngine::Instance().StartPlayback(msg.chat.id, streamUrl);
+        auto result = AudioEngine::Instance().StartPlayback(msg.chat.id, streamUrl);
+        if (!result.ok) {
+            qm.Clear(msg.chat.id);
+            std::string err_text;
+            if (result.error == "NO_ACTIVE_GROUP_CALL") {
+                err_text = lm.F(msg.chat.id, "err_no_active_voicechat");
+            } else if (result.error == "ASSISTANT_JOIN_FAILED") {
+                err_text = lm.F(msg.chat.id, "err_assistant_invite_failed", {{"error", result.detail}});
+            } else {
+                std::string err_detail = result.detail.empty() ? result.error : result.detail;
+                err_text = lm.F(msg.chat.id, "play_failed", {{"error", err_detail}});
+            }
+            if (wait_id > 0) tg_->EditMessageText(msg.chat.id, wait_id, err_text);
+            else tg_->SendMessage(msg.chat.id, err_text);
+            return;
+        }
+
+        qm.Clear(msg.chat.id);
+        qm.Enqueue(msg.chat.id, track);
+
+        ChatConfig cfg = Database::Instance().GetChatConfig(msg.chat.id);
+        std::string thumb = "🎵";
+        if (cfg.show_thumbnails && !track.thumbnail_url.empty()) {
+            thumb = "<a href=\"" + track.thumbnail_url + "\">🎵</a>";
+        }
         std::string now_playing = lm.F(msg.chat.id, "stream_now_playing", {
             {"thumb", thumb},
             {"url", track.url},
@@ -735,7 +756,20 @@ void BotEngine::HandlePlay(const TgMessage& msg, const std::string& query) {
             tg_->SendMessage(msg.chat.id, now_playing, MakePlayerMarkup(msg.chat.id, 0, 240));
         }
     } else {
-        std::string queued_txt = "📋 <b>Added to Queue:</b> <a href=\"" + track.url + "\">" + track.title + "</a> (" + track.duration + ")";
+        qm.Enqueue(msg.chat.id, track);
+        ChatConfig cfg = Database::Instance().GetChatConfig(msg.chat.id);
+        std::string thumb = "🎵";
+        if (cfg.show_thumbnails && !track.thumbnail_url.empty()) {
+            thumb = "<a href=\"" + track.thumbnail_url + "\">🎵</a>";
+        }
+        std::string queued_txt = lm.F(msg.chat.id, "play_added_to_queue_single", {
+            {"thumb", thumb},
+            {"index", std::to_string(qm.QueueSize(msg.chat.id))},
+            {"url", track.url},
+            {"title", track.title},
+            {"duration", track.duration},
+            {"by", requester}
+        });
         if (wait_id > 0) {
             tg_->EditMessageText(msg.chat.id, wait_id, queued_txt);
         } else {
@@ -759,9 +793,21 @@ void BotEngine::HandleFPlay(const TgMessage& msg, const std::string& query) {
     }
 
     Track track = trackOpt.value();
-    QueueManager::Instance().EnqueueForce(msg.chat.id, track);
     std::string streamUrl = track.stream_url.empty() ? track.url : track.stream_url;
-    AudioEngine::Instance().StartPlayback(msg.chat.id, streamUrl);
+    auto result = AudioEngine::Instance().StartPlayback(msg.chat.id, streamUrl);
+    if (!result.ok) {
+        std::string err_text;
+        if (result.error == "NO_ACTIVE_GROUP_CALL") {
+            err_text = lm.F(msg.chat.id, "err_no_active_voicechat");
+        } else {
+            std::string err_detail = result.detail.empty() ? result.error : result.detail;
+            err_text = lm.F(msg.chat.id, "play_failed", {{"error", err_detail}});
+        }
+        tg_->SendMessage(msg.chat.id, err_text);
+        return;
+    }
+
+    QueueManager::Instance().EnqueueForce(msg.chat.id, track);
 
     ChatConfig cfg = Database::Instance().GetChatConfig(msg.chat.id);
     std::string thumb = (cfg.show_thumbnails && !track.thumbnail_url.empty()) ? "<a href=\"" + track.thumbnail_url + "\">🎵</a>" : "🎵";
@@ -1993,4 +2039,104 @@ void BotEngine::ProcessCallback(const TgCallbackQuery& cb) {
     }
 
     tg_->AnswerCallbackQuery(cb.id, "");
+}
+
+void BotEngine::StartIpcListener() {
+    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_fd < 0) return;
+    int opt = 1;
+    setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    sockaddr_in address{};
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = inet_addr("127.0.0.1");
+    address.sin_port = htons(8056);
+    if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
+        close(server_fd);
+        return;
+    }
+    if (listen(server_fd, 10) < 0) {
+        close(server_fd);
+        return;
+    }
+    while (is_running_) {
+        sockaddr_in client_addr{};
+        socklen_t client_len = sizeof(client_addr);
+        int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
+        if (client_fd < 0) continue;
+        char buffer[2048] = {0};
+        ssize_t bytes = read(client_fd, buffer, sizeof(buffer) - 1);
+        if (bytes > 0) {
+            std::string req(buffer, bytes);
+            auto body_pos = req.find("\r\n\r\n");
+            if (body_pos != std::string::npos) {
+                std::string body = req.substr(body_pos + 4);
+                try {
+                    auto j = nlohmann::json::parse(body);
+                    if (j.contains("chat_id")) {
+                        int64_t cid = j["chat_id"].get<int64_t>();
+                        OnTrackEnded(cid);
+                    }
+                } catch (...) {}
+            }
+            std::string resp = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK";
+            write(client_fd, resp.data(), resp.size());
+        }
+        close(client_fd);
+    }
+    close(server_fd);
+}
+
+void BotEngine::OnTrackEnded(int64_t chat_id) {
+    auto& qm = QueueManager::Instance();
+    auto& lm = LocalizationManager::Instance();
+    auto next = qm.Next(chat_id);
+    if (next.has_value()) {
+        std::string streamUrl = next->stream_url.empty() ? next->url : next->stream_url;
+        auto res = AudioEngine::Instance().StartPlayback(chat_id, streamUrl);
+        if (res.ok) {
+            ChatConfig cfg = Database::Instance().GetChatConfig(chat_id);
+            std::string thumb = "🎵";
+            if (cfg.show_thumbnails && !next->thumbnail_url.empty()) {
+                thumb = "<a href=\"" + next->thumbnail_url + "\">🎵</a>";
+            }
+            std::string now_playing = lm.F(chat_id, "stream_now_playing", {
+                {"thumb", thumb},
+                {"url", next->url},
+                {"title", next->title},
+                {"duration", next->duration},
+                {"by", next->requester_name}
+            });
+            tg_->SendMessage(chat_id, now_playing, MakePlayerMarkup(chat_id, 0, 240));
+        }
+    } else if (Database::Instance().IsAutoplayEnabled(chat_id)) {
+        auto cur = qm.GetCurrent(chat_id);
+        std::string cur_title = cur.has_value() ? cur->title : "English Song";
+        std::string cur_id = cur.has_value() ? cur->id : "";
+        auto played = qm.GetPlayedHistory(chat_id);
+        auto autoTrack = PlatformYouTube::GetRelatedTrack(cur_title, cur_id, played);
+        if (autoTrack.has_value()) {
+            qm.Enqueue(chat_id, *autoTrack);
+            std::string streamUrl = autoTrack->stream_url.empty() ? autoTrack->url : autoTrack->stream_url;
+            auto res = AudioEngine::Instance().StartPlayback(chat_id, streamUrl);
+            if (res.ok) {
+                ChatConfig cfg = Database::Instance().GetChatConfig(chat_id);
+                std::string thumb = "🎵";
+                if (cfg.show_thumbnails && !autoTrack->thumbnail_url.empty()) {
+                    thumb = "<a href=\"" + autoTrack->thumbnail_url + "\">🎵</a>";
+                }
+                std::string now_playing = lm.F(chat_id, "stream_now_playing", {
+                    {"thumb", thumb},
+                    {"url", autoTrack->url},
+                    {"title", autoTrack->title},
+                    {"duration", autoTrack->duration},
+                    {"by", "🎵 Autoplay"}
+                });
+                tg_->SendMessage(chat_id, now_playing, MakePlayerMarkup(chat_id, 0, 240));
+            }
+        }
+    } else {
+        AudioEngine::Instance().StopPlayback(chat_id);
+        qm.Clear(chat_id);
+        tg_->SendMessage(chat_id, lm.F(chat_id, "cb_skip_queue_empty"));
+    }
 }

@@ -9,21 +9,58 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 
-static void CallAssistantBridge(const std::string& endpoint, const nlohmann::json& payload) {
+static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
+    size_t realsize = size * nmemb;
+    auto* mem = static_cast<std::string*>(userp);
+    mem->append(static_cast<char*>(contents), realsize);
+    return realsize;
+}
+
+static PlayResult CallAssistantBridge(const std::string& endpoint, const nlohmann::json& payload) {
+    PlayResult result;
     CURL* curl = curl_easy_init();
-    if (!curl) return;
+    if (!curl) {
+        result.ok = false;
+        result.error = "CURL_INIT_FAILED";
+        return result;
+    }
     std::string url = "http://127.0.0.1:8055/" + endpoint;
     std::string json_data = payload.dump();
+    std::string response_buf;
     struct curl_slist* headers = nullptr;
     headers = curl_slist_append(headers, "Content-Type: application/json");
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_data.c_str());
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 6L);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 12L);
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
-    curl_easy_perform(curl);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_buf);
+
+    CURLcode res = curl_easy_perform(curl);
+    long http_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
+
+    if (res != CURLE_OK) {
+        result.ok = false;
+        result.error = "ASSISTANT_UNREACHABLE";
+        result.detail = curl_easy_strerror(res);
+        return result;
+    }
+
+    try {
+        auto j = nlohmann::json::parse(response_buf);
+        result.ok = j.value("ok", false);
+        result.error = j.value("error", "");
+        result.detail = j.value("detail", "");
+    } catch (...) {
+        result.ok = (http_code == 200);
+        result.error = "PARSE_ERROR";
+        result.detail = response_buf;
+    }
+    return result;
 }
 
 AudioStreamSession::AudioStreamSession(int64_t chat_id, const std::string& stream_url, int64_t start_offset, double speed, int volume)
@@ -34,57 +71,31 @@ AudioStreamSession::~AudioStreamSession() {
     Stop();
 }
 
-bool AudioStreamSession::Start() {
+PlayResult AudioStreamSession::Start() {
     if (is_running_) {
         Stop();
     }
 
-    start_time_ = std::chrono::steady_clock::now();
-    is_running_ = true;
-    is_paused_ = false;
-
-    CallAssistantBridge("play", {
+    PlayResult res = CallAssistantBridge("play", {
         {"chat_id", chat_id_},
         {"url", stream_url_}
     });
 
-    pid_t pid = fork();
-    if (pid == 0) {
-        int devNull = open("/dev/null", O_WRONLY);
-        if (devNull >= 0) {
-            dup2(devNull, STDOUT_FILENO);
-            dup2(devNull, STDERR_FILENO);
-            close(devNull);
-        }
-
-        std::stringstream ssOffset;
-        ssOffset << start_offset_;
-        std::string offsetStr = ssOffset.str();
-
-        std::stringstream ssFilter;
-        ssFilter << "atempo=" << speed_ << ",volume=" << (volume_ / 100.0);
-        std::string filterStr = ssFilter.str();
-
-        execlp("ffmpeg", "ffmpeg", "-y", "-ss", offsetStr.c_str(), "-i", stream_url_.c_str(),
-               "-filter:a", filterStr.c_str(), "-f", "s16le", "-ac", "2", "-ar", "48000",
-               "-loglevel", "quiet", "/dev/null", nullptr);
-        _exit(1);
-    } else if (pid > 0) {
-        ffmpeg_pid_ = pid;
-        Logger::Info("AUDIO", "Started audio pipeline for chat: " + std::to_string(chat_id_) + " [PID: " + std::to_string(pid) + "]");
-        return true;
+    if (res.ok) {
+        start_time_ = std::chrono::steady_clock::now();
+        is_running_ = true;
+        is_paused_ = false;
+        Logger::Info("AUDIO", "Fast assistant playback started for chat: " + std::to_string(chat_id_));
+    } else {
+        is_running_ = false;
+        Logger::Error("AUDIO", "Playback failed for chat " + std::to_string(chat_id_) + ": [" + res.error + "] " + res.detail);
     }
-
-    is_running_ = false;
-    return false;
+    return res;
 }
 
 void AudioStreamSession::Pause() {
     if (is_running_ && !is_paused_) {
         CallAssistantBridge("pause", {{"chat_id", chat_id_}});
-        if (ffmpeg_pid_ > 0) {
-            kill(ffmpeg_pid_, SIGSTOP);
-        }
         is_paused_ = true;
         Logger::Info("AUDIO", "Paused playback for chat: " + std::to_string(chat_id_));
     }
@@ -93,9 +104,6 @@ void AudioStreamSession::Pause() {
 void AudioStreamSession::Resume() {
     if (is_running_ && is_paused_) {
         CallAssistantBridge("resume", {{"chat_id", chat_id_}});
-        if (ffmpeg_pid_ > 0) {
-            kill(ffmpeg_pid_, SIGCONT);
-        }
         is_paused_ = false;
         Logger::Info("AUDIO", "Resumed playback for chat: " + std::to_string(chat_id_));
     }
@@ -104,12 +112,6 @@ void AudioStreamSession::Resume() {
 void AudioStreamSession::Stop() {
     if (is_running_) {
         CallAssistantBridge("leave", {{"chat_id", chat_id_}});
-        if (ffmpeg_pid_ > 0) {
-            kill(ffmpeg_pid_, SIGTERM);
-            int status;
-            waitpid(ffmpeg_pid_, &status, WNOHANG);
-            ffmpeg_pid_ = -1;
-        }
         is_running_ = false;
         is_paused_ = false;
         Logger::Info("AUDIO", "Stopped playback for chat: " + std::to_string(chat_id_));
@@ -151,7 +153,7 @@ bool AudioEngine::VerifyFFmpeg() {
     return (ret == 0);
 }
 
-bool AudioEngine::StartPlayback(int64_t chat_id, const std::string& stream_url, int64_t start_offset, double speed, int volume) {
+PlayResult AudioEngine::StartPlayback(int64_t chat_id, const std::string& stream_url, int64_t start_offset, double speed, int volume) {
     std::lock_guard<std::mutex> lock(sessions_mutex_);
     auto it = sessions_.find(chat_id);
     if (it != sessions_.end()) {
@@ -159,9 +161,15 @@ bool AudioEngine::StartPlayback(int64_t chat_id, const std::string& stream_url, 
     }
 
     auto session = std::make_shared<AudioStreamSession>(chat_id, stream_url, start_offset, speed, volume);
-    sessions_[chat_id] = session;
-    current_urls_[chat_id] = stream_url;
-    return session->Start();
+    PlayResult res = session->Start();
+    if (res.ok) {
+        sessions_[chat_id] = session;
+        current_urls_[chat_id] = stream_url;
+    } else {
+        sessions_.erase(chat_id);
+        current_urls_.erase(chat_id);
+    }
+    return res;
 }
 
 void AudioEngine::PausePlayback(int64_t chat_id) {
@@ -223,8 +231,11 @@ bool AudioEngine::SeekPlayback(int64_t chat_id, int64_t seconds) {
         std::string url = url_it->second;
         it->second->Stop();
         auto session = std::make_shared<AudioStreamSession>(chat_id, url, seconds);
-        sessions_[chat_id] = session;
-        return session->Start();
+        PlayResult res = session->Start();
+        if (res.ok) {
+            sessions_[chat_id] = session;
+            return true;
+        }
     }
     return false;
 }
@@ -238,8 +249,11 @@ bool AudioEngine::SetPlaybackSpeed(int64_t chat_id, double speed) {
         std::string url = url_it->second;
         it->second->Stop();
         auto session = std::make_shared<AudioStreamSession>(chat_id, url, pos, speed);
-        sessions_[chat_id] = session;
-        return session->Start();
+        PlayResult res = session->Start();
+        if (res.ok) {
+            sessions_[chat_id] = session;
+            return true;
+        }
     }
     return false;
 }

@@ -86,6 +86,8 @@ private:
     void HandleStreamStop(const TgMessage& msg);
     void HandleStreamStatus(const TgMessage& msg);
     void HandleSetRTMP(const TgMessage& msg, const std::string& args);
+    void StartIpcListener();
+    void OnTrackEnded(int64_t chat_id);
 
     nlohmann::json MakeStartMarkup(int64_t chat_id);
     nlohmann::json MakeHelpMarkup(int64_t chat_id);
