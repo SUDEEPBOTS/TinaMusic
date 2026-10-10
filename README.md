@@ -2,19 +2,19 @@
   <img src="assets/banner.png" alt="TinaMusic Banner" width="100%">
 </p>
 
-<h1 align="center">🌸 TinaMusic ⚡ Telegram's First Native C++20 Music Engine</h1>
+<h1 align="center">🌸 TinaMusic ⚡ Telegram's First Native 100% Pure C++20 Music Engine</h1>
 
 <p align="center">
-  <b>The pioneer, high-performance Telegram music bot crafted entirely in modern compiled C++20 with a native Go MTProto WebRTC voice bridge.</b>
+  <b>The pioneer, high-performance Telegram music bot crafted 100% entirely in modern compiled C++20 with the in-process TinaProto native MTProto & WebRTC voice engine. Zero Go, Zero Python, Zero auxiliary processes.</b>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/First_Ever-Telegram_C%2B%2B20_Music_Bot-FF69B4?style=for-the-badge&logo=cplusplus" alt="Telegram 1st C++ Music Bot">
-  <img src="https://img.shields.io/badge/Language-C%2B%2B20-00599C?style=for-the-badge&logo=cplusplus" alt="C++20">
-  <img src="https://img.shields.io/badge/Voice_Bridge-Go_1.22+-00ADD8?style=for-the-badge&logo=go" alt="Go 1.22+">
+  <img src="https://img.shields.io/badge/First_Ever-Telegram_Pure_C%2B%2B20_Music_Bot-FF69B4?style=for-the-badge&logo=cplusplus" alt="Telegram 1st C++ Music Bot">
+  <img src="https://img.shields.io/badge/Language-100%25_Pure_C%2B%2B20-00599C?style=for-the-badge&logo=cplusplus" alt="100% C++20">
+  <img src="https://img.shields.io/badge/Engine-TinaProto_Native-FF1493?style=for-the-badge&logo=cplusplus" alt="TinaProto Native">
+  <img src="https://img.shields.io/badge/RAM-Under_20MB-success?style=for-the-badge" alt="Under 20MB RAM">
   <img src="https://img.shields.io/badge/License-GNU_AGPLv3-blue?style=for-the-badge" alt="AGPLv3">
   <img src="https://img.shields.io/badge/Cloud_Ready-Heroku%20%7C%20Render%20%7C%20Railway-brightgreen?style=for-the-badge" alt="Cloud Ready">
-  <img src="https://img.shields.io/badge/Zero_Python-100%25_Native-success?style=for-the-badge" alt="Zero Python">
 </p>
 
 ---
@@ -85,25 +85,19 @@ Traditional Telegram music bots written in Python (Pyrogram & PyTgCalls) suffer 
 ```mermaid
 flowchart LR
     User["Telegram Group / User"] -->|Commands: /play, /pause, /skip| TGAPI["Telegram Bot API"]
-    TGAPI -->|libcurl Long-Polling| Core["TinaMusic Core (C++20)"]
+    TGAPI -->|libcurl Polling / Webhook| Core["TinaMusic Core (C++20)"]
     
-    subgraph CoreEngine ["TinaMusic C++20 Core"]
+    subgraph SingleBinary ["100% Pure C++20 Single Binary (bin/tina-music-bot)"]
         Core --> Queue["Thread-Safe Queue Manager"]
         Core --> Resolver["Yuki CDN & InnerTube Resolver"]
         Core --> Locales["Dynamic YAML Localization"]
-    end
-    
-    Resolver -->|Direct Audio Stream URL| Core
-    Core -->|Loopback IPC: /play (Port 8055)| Bridge["Native Voice Bridge (Go 1.22+)"]
-    
-    subgraph VoiceBridge ["Assistant Voice Bridge"]
-        Bridge --> Gogram["Gogram MTProto Client"]
-        Bridge --> NTgCalls["libntgcalls WebRTC Cgo"]
+        Core -->|In-Process C++ Call| TinaProto["TinaProto MTProto Client"]
+        TinaProto -->|C-ABI In-Process Link| NTgCalls["libntgcalls WebRTC Engine"]
         NTgCalls --> FFmpeg["FFmpeg PCM Transcoder"]
+        NTgCalls -.->|In-Memory Callback OnStreamEnd| Core
     end
     
     NTgCalls -->|WebRTC RTP Audio Packets| VC["Telegram Group Voice Chat"]
-    NTgCalls -.->|Stream End Hook (Port 8056)| Core
 ```
 
 ---
@@ -119,7 +113,7 @@ chmod +x install.sh
 ./install.sh
 ```
 
-The installer installs system compilers, downloads prebuilt `libntgcalls` WebRTC static libraries, sets up `.env`, and builds both native binaries.
+The installer installs system compilers, downloads prebuilt `libntgcalls` WebRTC static libraries, sets up `.env`, and builds the 100% pure C++20 single binary.
 
 ### Manual Compilation
 
@@ -135,7 +129,7 @@ nano .env
 # 3. Compile sequentially (preserves memory on small VPS nodes)
 make -j1
 
-# 4. Launch bot & voice bridge
+# 4. Launch bot
 ./start.sh
 ```
 

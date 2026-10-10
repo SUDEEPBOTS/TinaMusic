@@ -42,6 +42,7 @@
 #include "logger.hpp"
 #include "platforms.hpp"
 #include "platform_yt.hpp"
+#include "tinaproto/client.hpp"
 #include <thread>
 #include <chrono>
 #include <sstream>
@@ -366,6 +367,9 @@ nlohmann::json BotEngine::MakeLanguageMarkup() {
 
 void BotEngine::Run() {
     is_running_ = true;
+    tinaproto::TinaProtoClient::GetInstance().SetOnStreamEnd([this](int64_t cid) {
+        OnTrackEnded(cid);
+    });
     std::thread ipc_thread(&BotEngine::StartIpcListener, this);
     ipc_thread.detach();
     Logger::Info("BOT", "Starting Telegram polling loop (C++20 Native Engine)...");

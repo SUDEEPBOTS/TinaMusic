@@ -42,6 +42,7 @@
 #include "logger.hpp"
 #include "audio_engine.hpp"
 #include "bot_engine.hpp"
+#include "tinaproto/client.hpp"
 #include <curl/curl.h>
 #include <iostream>
 #include <csignal>
@@ -94,6 +95,18 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     Logger::Info("TELEGRAM", "Telegram connection established successfully.");
+
+    int32_t api_id_int = 0;
+    try {
+        api_id_int = std::stoi(config.api_id);
+    } catch (...) {}
+
+    Logger::Info("STARTUP", "Initializing pure C++20 TinaProto native voice engine...");
+    if (!tinaproto::TinaProtoClient::GetInstance().Initialize(config.string_session, api_id_int, config.api_hash)) {
+        Logger::Warn("STARTUP", "TinaProtoClient initialization failed or deferred");
+    } else {
+        Logger::Info("STARTUP", "Pure C++20 TinaProto voice engine ready and operational");
+    }
 
     g_bot = std::make_unique<BotEngine>(config);
     g_bot->Run();

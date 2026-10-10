@@ -8,7 +8,6 @@ RUN apt-get update && \
         g++ \
         make \
         cmake \
-        golang-go \
         libcurl4-openssl-dev \
         libyaml-cpp-dev \
         zlib1g-dev \
@@ -20,7 +19,7 @@ RUN apt-get update && \
 COPY . .
 
 RUN ARCH=$(uname -m) && \
-    mkdir -p vendor/ntgcalls/lib vendor/ntgcalls/include bridge/ntgcalls && \
+    mkdir -p vendor/ntgcalls/lib vendor/ntgcalls/include && \
     if [ ! -f "vendor/ntgcalls/lib/libntgcalls.a" ]; then \
         if [ "$ARCH" = "x86_64" ]; then \
             curl -sSL "https://github.com/pytgcalls/ntgcalls/releases/download/v2.1.0/ntgcalls.linux-x86_64-static_libs.zip" -o /tmp/ntgcalls.zip; \
@@ -32,9 +31,7 @@ RUN ARCH=$(uname -m) && \
         cp /tmp/ntgcalls_extracted/include/ntgcalls.h vendor/ntgcalls/include/ && \
         rm -rf /tmp/ntgcalls.zip /tmp/ntgcalls_extracted; \
     fi && \
-    (cd bridge && ln -sf ../vendor/ntgcalls/lib/libntgcalls.a libntgcalls.a) && \
-    (cd bridge/ntgcalls && ln -sf ../../vendor/ntgcalls/lib/libntgcalls.a libntgcalls.a) && \
-    make -j2
+    make -j1
 
 FROM ubuntu:24.04
 
@@ -52,6 +49,7 @@ WORKDIR /app
 
 COPY --from=builder /build/bin /app/bin
 COPY --from=builder /build/locales /app/locales
+COPY --from=builder /build/data /app/data
 COPY --from=builder /build/start.sh /app/start.sh
 
 RUN chmod +x /app/start.sh /app/bin/*

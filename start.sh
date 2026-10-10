@@ -9,7 +9,7 @@
 # ============================================================================
 #
 # Project: TinaMusic - Telegram's First Native C++20 Music Bot Engine
-# Architecture: Native C++20 Core + Go MTProto WebRTC Voice Bridge
+# Architecture: 100% Pure Native C++20 Single Binary (TinaProto)
 # Copyright (C) 2026 SUDEEPBOTS / TinaMusic Contributors
 # Support: https://t.me/Z0iiw
 #
@@ -41,31 +41,15 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-pkill -9 -f "assistant-bridge" 2>/dev/null || true
 pkill -9 -f "tina-music-bot" 2>/dev/null || true
 pkill -9 -f "yukki-music-bot" 2>/dev/null || true
-pkill -9 -f "tinamusic" 2>/dev/null || true
+pkill -9 -f "assistant-bridge" 2>/dev/null || true
 sleep 1
 
-if [ ! -f "bin/assistant-bridge" ] || [ ! -f "bin/tina-music-bot" ]; then
-    echo "[SYSTEM] [STARTUP] Binaries not found, compiling..."
+if [ ! -f "bin/tina-music-bot" ]; then
+    echo "[SYSTEM] [STARTUP] TinaMusic pure C++20 binary not found, compiling..."
     make -j1
 fi
 
-./bin/assistant-bridge > bridge.log 2>&1 &
-BRIDGE_PID=$!
-echo "[SYSTEM] [STARTUP] Native voice bridge started [PID: $BRIDGE_PID]"
-
-echo "[SYSTEM] [STARTUP] Waiting for voice bridge initialization..."
-for i in {1..20}; do
-    RES=$(curl -s http://127.0.0.1:8055/status 2>/dev/null || true)
-    if [[ "$RES" == *"\"ok\":true"* || "$RES" == *"\"ok\": true"* ]]; then
-        echo "[SYSTEM] [STARTUP] Native voice bridge verified and operational."
-        break
-    fi
-    sleep 1
-done
-
-trap "kill -9 $BRIDGE_PID 2>/dev/null || true" EXIT
-
+echo "[SYSTEM] [STARTUP] Launching pure C++20 TinaMusic engine..."
 exec ./bin/tina-music-bot

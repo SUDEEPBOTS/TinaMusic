@@ -14,11 +14,6 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.22'
-
     - name: Install system dependencies
       run: |
         sudo apt-get update
@@ -36,23 +31,16 @@ jobs:
 
     - name: Download NTgCalls Static Library
       run: |
-        mkdir -p vendor/ntgcalls/lib vendor/ntgcalls/include bridge/ntgcalls
+        mkdir -p vendor/ntgcalls/lib vendor/ntgcalls/include
         curl -sSL "https://github.com/pytgcalls/ntgcalls/releases/download/v2.1.0/ntgcalls.linux-x86_64-static_libs.zip" -o /tmp/ntgcalls.zip
         unzip -q -o /tmp/ntgcalls.zip -d /tmp/ntgcalls_extracted
         mv $(find /tmp/ntgcalls_extracted -name "libntgcalls.a" | head -n1) vendor/ntgcalls/lib/libntgcalls.a
         cp /tmp/ntgcalls_extracted/include/ntgcalls.h vendor/ntgcalls/include/
         rm -rf /tmp/ntgcalls.zip /tmp/ntgcalls_extracted
-        cd bridge && ln -sf ../vendor/ntgcalls/lib/libntgcalls.a libntgcalls.a
-        cd ntgcalls && ln -sf ../../vendor/ntgcalls/lib/libntgcalls.a libntgcalls.a
-
-    - name: Compile Native Voice Bridge
-      run: |
-        cd bridge
-        go build -v -o ../bin/assistant-bridge .
 
     - name: Compile C++20 Core Engine
       run: |
-        make -j2
+        make -j1
 
     - name: Run Test Suite
       run: |
