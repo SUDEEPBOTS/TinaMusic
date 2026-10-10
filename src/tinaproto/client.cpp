@@ -91,10 +91,8 @@ StreamResult TinaProtoClient::Play(int64_t chat_id, const std::string& stream_ur
             Logger::Info("TINAPROTO", "Updated active stream sources for chat " + std::to_string(chat_id));
             return result;
         } else {
-            result.ok = false;
-            result.error = "SET_SOURCES_FAILED";
-            result.detail = "Failed to update stream sources for active call";
-            return result;
+            Logger::Warn("TINAPROTO", "SetStreamSources failed on active call, recreating call for chat " + std::to_string(chat_id));
+            voice_binding_.Stop(chat_id);
         }
     }
 
@@ -166,6 +164,11 @@ void TinaProtoClient::SetOnStreamEnd(std::function<void(int64_t)> cb) {
 std::optional<InputGroupCall> TinaProtoClient::GetGroupCall(int64_t chat_id) {
     std::lock_guard<std::mutex> lock(mtx_);
     return mtproto_.GetGroupCall(chat_id);
+}
+
+bool TinaProtoClient::HasActiveCall(int64_t chat_id) {
+    std::lock_guard<std::mutex> lock(mtx_);
+    return voice_binding_.HasActiveCall(chat_id);
 }
 
 }

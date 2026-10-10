@@ -75,10 +75,6 @@ void VoiceBinding::StreamEndThunk(uintptr_t ptr, int64_t chat_id, int stream_typ
     if (!self) {
         return;
     }
-    {
-        std::lock_guard<std::mutex> lock(self->calls_mtx_);
-        self->active_calls_.erase(chat_id);
-    }
     if (self->on_stream_end_cb_) {
         self->on_stream_end_cb_(chat_id);
     }

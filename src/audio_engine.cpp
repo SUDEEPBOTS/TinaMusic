@@ -64,10 +64,9 @@ void AudioStreamSession::Resume() {
 
 void AudioStreamSession::Stop() {
     if (is_running_) {
-        tinaproto::TinaProtoClient::GetInstance().Stop(chat_id_);
         is_running_ = false;
         is_paused_ = false;
-        Logger::Info("AUDIO", "Stopped playback for chat: " + std::to_string(chat_id_));
+        Logger::Info("AUDIO", "Stopped playback session for chat: " + std::to_string(chat_id_));
     }
 }
 
@@ -162,7 +161,9 @@ void AudioEngine::StopPlayback(int64_t chat_id) {
         it->second->Stop();
         sessions_.erase(it);
     }
+    tinaproto::TinaProtoClient::GetInstance().Stop(chat_id);
     current_urls_.erase(chat_id);
+    Logger::Info("AUDIO", "Stopped playback and disconnected call for chat: " + std::to_string(chat_id));
 }
 
 void AudioEngine::MutePlayback(int64_t chat_id) {

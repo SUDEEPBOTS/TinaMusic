@@ -46,6 +46,8 @@ public:
 
     std::optional<InputGroupCall> GetGroupCall(int64_t chat_id);
 
+    bool HasActiveCall(int64_t chat_id);
+
     bool IsInitialized() const { return initialized_; }
 
 private:

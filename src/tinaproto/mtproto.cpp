@@ -20,6 +20,8 @@
 #include <iostream>
 #include <sys/random.h>
 #include <zlib.h>
+#include <thread>
+#include <chrono>
 
 namespace tinaproto {
 
@@ -228,7 +230,7 @@ std::vector<uint8_t> MtprotoClient::ReceivePacket() {
     return payload;
 }
 
-std::vector<uint8_t> MtprotoClient::ExtractRpcResult(const std::vector<uint8_t>& payload, bool& need_resend) {
+std::vector<uint8_t> MtprotoClient::ExtractRpcResult(const std::vector<uint8_t>& payload, int64_t target_msg_id, bool& need_resend, bool& is_rpc_error) {
     if (payload.size() < 4) return {};
     uint32_t constructor = *reinterpret_cast<const uint32_t*>(payload.data());
 
@@ -240,32 +242,62 @@ std::vector<uint8_t> MtprotoClient::ExtractRpcResult(const std::vector<uint8_t>&
             r.ReadInt64();
             r.ReadInt32();
             int32_t inner_bytes = r.ReadInt32();
+            if (inner_bytes <= 0 || static_cast<size_t>(inner_bytes) > r.Remaining()) {
+                break;
+            }
             std::vector<uint8_t> inner = r.ReadRawBytes(static_cast<size_t>(inner_bytes));
             if (!inner.empty()) {
-                uint32_t inner_c = *reinterpret_cast<const uint32_t*>(inner.data());
-                if (inner_c == 0xedab447b && inner.size() >= 28) {
-                    salt_ = *reinterpret_cast<const int64_t*>(inner.data() + 20);
-                    need_resend = true;
-                } else if (inner_c == 0x9ec20908 && inner.size() >= 28) {
-                    salt_ = *reinterpret_cast<const int64_t*>(inner.data() + 20);
-                }
-                std::vector<uint8_t> res = ExtractRpcResult(inner, need_resend);
+                std::vector<uint8_t> res = ExtractRpcResult(inner, target_msg_id, need_resend, is_rpc_error);
+                if (is_rpc_error) return {};
                 if (!res.empty()) return res;
             }
         }
+        return {};
     } else if (constructor == 0xf35c6d01) {
-        TlReader r(payload);
-        r.ReadUint32();
-        r.ReadInt64();
-        std::vector<uint8_t> inner = r.ReadRawBytes(r.Remaining());
-        return ExtractRpcResult(inner, need_resend);
+        if (payload.size() < 12) return {};
+        int64_t req_msg_id = *reinterpret_cast<const int64_t*>(payload.data() + 4);
+        if (req_msg_id != target_msg_id) {
+            return {};
+        }
+        std::vector<uint8_t> inner(payload.begin() + 12, payload.end());
+        if (inner.size() >= 4) {
+            uint32_t inner_c = *reinterpret_cast<const uint32_t*>(inner.data());
+            if (inner_c == 0x3072cfa1) {
+                TlReader r(inner);
+                r.ReadUint32();
+                std::vector<uint8_t> comp = r.ReadBytes();
+                std::vector<uint8_t> decomp = DecompressGzip(comp.data(), comp.size());
+                if (!decomp.empty()) {
+                    if (decomp.size() >= 4 && *reinterpret_cast<const uint32_t*>(decomp.data()) == 0x2144ca19) {
+                        TlReader er(decomp);
+                        er.ReadUint32();
+                        int32_t err_code = er.ReadInt32();
+                        std::string err_msg = er.ReadString();
+                        Logger::Error("TINAPROTO", "Telegram RPC error: [" + std::to_string(err_code) + "] " + err_msg);
+                        is_rpc_error = true;
+                        return {};
+                    }
+                    return decomp;
+                }
+                return {};
+            } else if (inner_c == 0x2144ca19) {
+                TlReader r(inner);
+                r.ReadUint32();
+                int32_t err_code = r.ReadInt32();
+                std::string err_msg = r.ReadString();
+                Logger::Error("TINAPROTO", "Telegram RPC error: [" + std::to_string(err_code) + "] " + err_msg);
+                is_rpc_error = true;
+                return {};
+            }
+        }
+        return inner;
     } else if (constructor == 0x3072cfa1) {
         TlReader r(payload);
         r.ReadUint32();
         std::vector<uint8_t> compressed = r.ReadBytes();
         std::vector<uint8_t> decompressed = DecompressGzip(compressed.data(), compressed.size());
         if (!decompressed.empty()) {
-            return ExtractRpcResult(decompressed, need_resend);
+            return ExtractRpcResult(decompressed, target_msg_id, need_resend, is_rpc_error);
         }
         return {};
     } else if (constructor == 0xedab447b && payload.size() >= 28) {
@@ -281,6 +313,7 @@ std::vector<uint8_t> MtprotoClient::ExtractRpcResult(const std::vector<uint8_t>&
         int32_t err_code = r.ReadInt32();
         std::string err_msg = r.ReadString();
         Logger::Error("TINAPROTO", "Telegram RPC error: [" + std::to_string(err_code) + "] " + err_msg);
+        is_rpc_error = true;
         return {};
     } else if (constructor == 0xa7eff811) {
         TlReader r(payload);
@@ -290,10 +323,6 @@ std::vector<uint8_t> MtprotoClient::ExtractRpcResult(const std::vector<uint8_t>&
         int32_t err_code = r.ReadInt32();
         Logger::Warn("TINAPROTO", "Telegram BadMsgNotification code: " + std::to_string(err_code));
         return {};
-    } else if (constructor == 0x62d6b459) {
-        return {};
-    } else {
-        return payload;
     }
     return {};
 }
@@ -312,7 +341,7 @@ std::vector<uint8_t> MtprotoClient::SendRpc(const std::vector<uint8_t>& rpc_quer
         return {};
     }
 
-    for (int attempts = 0; attempts < 5; ++attempts) {
+    for (int attempts = 0; attempts < 15; ++attempts) {
         std::vector<uint8_t> resp = ReceivePacket();
         if (resp.empty()) {
             continue;
@@ -321,20 +350,13 @@ std::vector<uint8_t> MtprotoClient::SendRpc(const std::vector<uint8_t>& rpc_quer
         uint32_t constructor = *reinterpret_cast<const uint32_t*>(resp.data());
         Logger::Info("TINAPROTO", "Attempt " + std::to_string(attempts) + " received constructor 0x" + std::to_string(constructor) + " size " + std::to_string(resp.size()));
 
-        if (constructor == 0xedab447b && resp.size() >= 28) {
-            salt_ = *reinterpret_cast<const int64_t*>(resp.data() + 20);
-            Logger::Info("TINAPROTO", "Updated server salt, resending RPC");
-            msg_id = Crypto::GenerateMsgId();
-            cur_seq = seq_no_;
-            seq_no_ += 2;
-            if (!SendPacket(rpc_query, cur_seq, msg_id)) {
-                return {};
-            }
-            continue;
+        bool need_resend = false;
+        bool is_rpc_error = false;
+        std::vector<uint8_t> rpc_res = ExtractRpcResult(resp, msg_id, need_resend, is_rpc_error);
+        if (is_rpc_error) {
+            return {};
         }
 
-        bool need_resend = false;
-        std::vector<uint8_t> rpc_res = ExtractRpcResult(resp, need_resend);
         if (need_resend) {
             Logger::Info("TINAPROTO", "Updated server salt in container, resending RPC");
             msg_id = Crypto::GenerateMsgId();
@@ -351,6 +373,7 @@ std::vector<uint8_t> MtprotoClient::SendRpc(const std::vector<uint8_t>& rpc_quer
         }
     }
 
+    Logger::Error("TINAPROTO", "SendRpc timed out or failed to receive matching rpc_result");
     return {};
 }
 
@@ -442,21 +465,25 @@ std::optional<InputGroupCall> MtprotoClient::GetGroupCall(int64_t chat_id) {
     w.PutInt64(channel_id);
     w.PutInt64(access_hash);
 
-    std::vector<uint8_t> resp = SendRpc(w.TakeData());
-    if (resp.empty()) {
-        Logger::Error("TINAPROTO", "channels.getFullChannel failed for chat " + std::to_string(chat_id));
-        return std::nullopt;
-    }
+    std::vector<uint8_t> query_bytes = w.TakeData();
 
-    for (size_t i = 0; i + 20 <= resp.size(); ++i) {
-        uint32_t magic = *reinterpret_cast<const uint32_t*>(resp.data() + i);
-        if (magic == 0xd8aa840f) {
-            int64_t call_id = *reinterpret_cast<const int64_t*>(resp.data() + i + 4);
-            int64_t call_hash = *reinterpret_cast<const int64_t*>(resp.data() + i + 12);
-            InputGroupCall call{call_id, call_hash, true};
-            group_calls_[chat_id] = call;
-            Logger::Info("TINAPROTO", "Resolved InputGroupCall for chat " + std::to_string(chat_id) + " (id: " + std::to_string(call_id) + ")");
-            return call;
+    for (int retry = 0; retry < 2; ++retry) {
+        std::vector<uint8_t> resp = SendRpc(query_bytes);
+        if (!resp.empty()) {
+            for (size_t i = 0; i + 20 <= resp.size(); ++i) {
+                uint32_t magic = *reinterpret_cast<const uint32_t*>(resp.data() + i);
+                if (magic == 0xd8aa840f) {
+                    int64_t call_id = *reinterpret_cast<const int64_t*>(resp.data() + i + 4);
+                    int64_t call_hash = *reinterpret_cast<const int64_t*>(resp.data() + i + 12);
+                    InputGroupCall call{call_id, call_hash, true};
+                    group_calls_[chat_id] = call;
+                    Logger::Info("TINAPROTO", "Resolved InputGroupCall for chat " + std::to_string(chat_id) + " (id: " + std::to_string(call_id) + ")");
+                    return call;
+                }
+            }
+        }
+        if (retry == 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(400));
         }
     }
 
@@ -484,6 +511,7 @@ std::string MtprotoClient::JoinGroupCall(int64_t chat_id, const std::string& loc
     std::vector<uint8_t> resp = SendRpc(w.TakeData());
     if (resp.empty()) {
         Logger::Error("TINAPROTO", "phone.joinGroupCall RPC failed for chat " + std::to_string(chat_id));
+        group_calls_.erase(chat_id);
         return "";
     }
 
@@ -515,6 +543,7 @@ std::string MtprotoClient::JoinGroupCall(int64_t chat_id, const std::string& loc
         }
     }
 
+    group_calls_.erase(chat_id);
     return "{\"transport\": null}";
 }
 
