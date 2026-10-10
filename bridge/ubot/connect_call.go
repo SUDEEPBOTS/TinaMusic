@@ -1,7 +1,20 @@
 /*
  * ============================================================================
- * TinaMusic - Telegram's First Native C++20 Music Engine
- * Copyright (C) 2026 TheTeamVivek / TinaMusic Contributors
+ *   ████████╗██╗███╗   ██╗ █████╗ ███╗   ███╗██╗   ██╗███████╗██╗ ██████╗
+ *   ╚══██╔══╝██║████╗  ██║██╔══██╗████╗ ████║██║   ██║██╔════╝██║██╔════╝
+ *      ██║   ██║██╔██╗ ██║███████║██╔████╔██║██║   ██║███████╗██║██║     
+ *      ██║   ██║██║╚██╗██║██╔══██║██║╚██╔╝██║██║   ██║╚════██║██║██║     
+ *      ██║   ██║██║ ╚████║██║  ██║██║ ╚═╝ ██║╚██████╔╝███████║██║╚██████╗
+ *      ╚═╝   ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝     ╚═╝ ╚═════╝ ╚══════╝╚═╝ ╚═════╝
+ * ============================================================================
+ *
+ * Project: TinaMusic - Telegram's First Native C++20 Music Bot Engine
+ * Architecture: Native C++20 Core + Go MTProto WebRTC Voice Bridge
+ * Copyright (C) 2026 TheTeamVivek / SUDEEPBOTS / TinaMusic Contributors
+ * All Rights Reserved.
+ *
+ * ----------------------------------------------------------------------------
+ * LEGAL NOTICE & LICENSE (GNU Affero General Public License v3.0):
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -15,6 +28,13 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ * STRICT COPYLEFT CLAUSE:
+ * In accordance with Section 13 of the GNU AGPLv3, if you modify this program
+ * or run it as a network service (e.g., hosted on servers, Telegram, or cloud),
+ * you MUST make the complete source code of your modified version available
+ * to all users under the exact same AGPLv3 license terms.
+ * Closed-source derivatives or rebranded copies are strictly prohibited.
  * ============================================================================
  */
 

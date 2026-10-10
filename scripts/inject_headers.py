@@ -1,13 +1,27 @@
 #!/usr/bin/env python3
 import os
 import glob
+import re
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-CPP_GO_HEADER = """/*
+BIG_CPP_GO_HEADER = """/*
  * ============================================================================
- * TinaMusic - Telegram's First Native C++20 Music Engine
- * Copyright (C) 2026 TheTeamVivek / TinaMusic Contributors
+ *   ████████╗██╗███╗   ██╗ █████╗ ███╗   ███╗██╗   ██╗███████╗██╗ ██████╗
+ *   ╚══██╔══╝██║████╗  ██║██╔══██╗████╗ ████║██║   ██║██╔════╝██║██╔════╝
+ *      ██║   ██║██╔██╗ ██║███████║██╔████╔██║██║   ██║███████╗██║██║     
+ *      ██║   ██║██║╚██╗██║██╔══██║██║╚██╔╝██║██║   ██║╚════██║██║██║     
+ *      ██║   ██║██║ ╚████║██║  ██║██║ ╚═╝ ██║╚██████╔╝███████║██║╚██████╗
+ *      ╚═╝   ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝     ╚═╝ ╚═════╝ ╚══════╝╚═╝ ╚═════╝
+ * ============================================================================
+ *
+ * Project: TinaMusic - Telegram's First Native C++20 Music Bot Engine
+ * Architecture: Native C++20 Core + Go MTProto WebRTC Voice Bridge
+ * Copyright (C) 2026 TheTeamVivek / SUDEEPBOTS / TinaMusic Contributors
+ * All Rights Reserved.
+ *
+ * ----------------------------------------------------------------------------
+ * LEGAL NOTICE & LICENSE (GNU Affero General Public License v3.0):
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -21,14 +35,34 @@ CPP_GO_HEADER = """/*
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ * STRICT COPYLEFT CLAUSE:
+ * In accordance with Section 13 of the GNU AGPLv3, if you modify this program
+ * or run it as a network service (e.g., hosted on servers, Telegram, or cloud),
+ * you MUST make the complete source code of your modified version available
+ * to all users under the exact same AGPLv3 license terms.
+ * Closed-source derivatives or rebranded copies are strictly prohibited.
  * ============================================================================
  */
 
 """
 
-SH_HEADER = """# ============================================================================
-# TinaMusic - Telegram's First Native C++20 Music Engine
-# Copyright (C) 2026 TheTeamVivek / TinaMusic Contributors
+BIG_SH_HEADER = """# ============================================================================
+#   ████████╗██╗███╗   ██╗ █████╗ ███╗   ███╗██╗   ██╗███████╗██╗ ██████╗
+#   ╚══██╔══╝██║████╗  ██║██╔══██╗████╗ ████║██║   ██║██╔════╝██║██╔════╝
+#      ██║   ██║██╔██╗ ██║███████║██╔████╔██║██║   ██║███████╗██║██║     
+#      ██║   ██║██║╚██╗██║██╔══██║██║╚██╔╝██║██║   ██║╚════██║██║██║     
+#      ██║   ██║██║ ╚████║██║  ██║██║ ╚═╝ ██║╚██████╔╝███████║██║╚██████╗
+#      ╚═╝   ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝     ╚═╝ ╚═════╝ ╚══════╝╚═╝ ╚═════╝
+# ============================================================================
+#
+# Project: TinaMusic - Telegram's First Native C++20 Music Bot Engine
+# Architecture: Native C++20 Core + Go MTProto WebRTC Voice Bridge
+# Copyright (C) 2026 TheTeamVivek / SUDEEPBOTS / TinaMusic Contributors
+# All Rights Reserved.
+#
+# ----------------------------------------------------------------------------
+# LEGAL NOTICE & LICENSE (GNU Affero General Public License v3.0):
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -42,6 +76,13 @@ SH_HEADER = """# ===============================================================
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
+#
+# STRICT COPYLEFT CLAUSE:
+# In accordance with Section 13 of the GNU AGPLv3, if you modify this program
+# or run it as a network service (e.g., hosted on servers, Telegram, or cloud),
+# you MUST make the complete source code of your modified version available
+# to all users under the exact same AGPLv3 license terms.
+# Closed-source derivatives or rebranded copies are strictly prohibited.
 # ============================================================================
 
 """
@@ -49,28 +90,30 @@ SH_HEADER = """# ===============================================================
 def inject_cpp_go(filepath):
     with open(filepath, "r", encoding="utf-8") as f:
         content = f.read()
-    if "TinaMusic - Telegram's First Native C++20 Music Engine" in content:
-        print(f"Skipping (already injected): {filepath}")
-        return
-    new_content = CPP_GO_HEADER + content
+
+    # Remove existing header if present
+    content = re.sub(r'/\*\s*\n\s*\*\s*============================================================================.*?============================================================================\s*\*/\s*\n*', '', content, flags=re.DOTALL)
+    
+    new_content = BIG_CPP_GO_HEADER + content.lstrip()
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(new_content)
-    print(f"Injected header into: {filepath}")
+    print(f"Injected big AGPLv3 header: {filepath}")
 
 def inject_sh(filepath):
     with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.readlines()
-    content = "".join(lines)
-    if "TinaMusic - Telegram's First Native C++20 Music Engine" in content:
-        print(f"Skipping (already injected): {filepath}")
-        return
-    if lines and lines[0].startswith("#!"):
-        new_content = lines[0] + "\n" + SH_HEADER + "".join(lines[1:])
-    else:
-        new_content = SH_HEADER + content
+        content = f.read()
+
+    shebang = "#!/bin/bash\n"
+    if content.startswith("#!/bin/bash"):
+        content = content[len(shebang):]
+
+    # Remove existing header if present
+    content = re.sub(r'# ============================================================================.*?# ============================================================================\s*\n*', '', content, flags=re.DOTALL)
+    
+    new_content = shebang + BIG_SH_HEADER + content.lstrip()
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(new_content)
-    print(f"Injected header into shell script: {filepath}")
+    print(f"Injected big AGPLv3 header: {filepath}")
 
 def main():
     cpp_files = glob.glob(os.path.join(BASE_DIR, "src", "**", "*.cpp"), recursive=True) + \
