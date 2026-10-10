@@ -1,9 +1,11 @@
 services:
-  yukkimusic:
+  tinamusic:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: yukkimusic
+    container_name: tinamusic
     env_file:
       - .env
+    volumes:
+      - ./data:/app/data
     restart: unless-stopped

@@ -1,0 +1,29 @@
+name: "Feature Request"
+description: "Suggest a new capability or architectural improvement"
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea to make TinaMusic even faster, more reliable, or feature-packed? Let us know below!
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Problem or Opportunity"
+      description: "Is your feature request related to a specific limitation or performance bottleneck?"
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: "Proposed Solution"
+      description: "Describe the solution or new feature you would like to see."
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Alternatives Considered"
+      description: "Any alternative approaches or workarounds you've thought of."
+    validations:
+      required: false

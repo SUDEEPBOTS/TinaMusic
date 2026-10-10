@@ -9,16 +9,24 @@ TESTDIR = tests
 
 SOURCES = $(wildcard $(SRCDIR)/*.cpp)
 OBJECTS = $(SOURCES:$(SRCDIR)/%.cpp=$(BINDIR)/%.o)
-TARGET = $(BINDIR)/yukki-music-bot
+TARGET = $(BINDIR)/tina-music-bot
+BRIDGE_TARGET = $(BINDIR)/assistant-bridge
 
 TEST_TARGET = $(BINDIR)/test_full
 
-all: $(TARGET)
+all: $(TARGET) $(BRIDGE_TARGET)
 
 $(TARGET): $(OBJECTS)
 	@mkdir -p $(BINDIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+	@ln -sf tina-music-bot $(BINDIR)/yukki-music-bot
 	@echo "Build complete: $(TARGET)"
+
+$(BRIDGE_TARGET):
+	@mkdir -p $(BINDIR)
+	@echo "Building native voice bridge..."
+	@cd bridge && go build -o ../$(BRIDGE_TARGET) .
+	@echo "Build complete: $(BRIDGE_TARGET)"
 
 $(BINDIR)/%.o: $(SRCDIR)/%.cpp
 	@mkdir -p $(BINDIR)
@@ -35,4 +43,4 @@ $(TEST_TARGET): $(TESTDIR)/test_full.cpp $(BINDIR)/queue_manager.o $(BINDIR)/log
 clean:
 	rm -rf $(BINDIR)
 
-.PHONY: all test clean
+.PHONY: all test clean $(BRIDGE_TARGET)

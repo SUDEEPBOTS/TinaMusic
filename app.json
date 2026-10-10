@@ -1,7 +1,7 @@
 {
-    "name": "YukkiMusic",
-    "description": "A high-performance C++20 Telegram bot engine that streams music into group voice chats with seamless playback and control.",
-    "keywords": ["telegram", "bot", "music", "cpp", "voice-chat", "ntgcalls"],
+    "name": "TinaMusic",
+    "description": "Telegram's First Native C++20 Telegram Music Bot engine streaming audio into group voice chats.",
+    "keywords": ["telegram", "bot", "music", "cpp", "voice-chat", "ntgcalls", "tinamusic"],
     "repository": "https://github.com/TheTeamVivek/YukkiMusic",
     "website": "https://github.com/TheTeamVivek/YukkiMusic",
     "stack": "container",

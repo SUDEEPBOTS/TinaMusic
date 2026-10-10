@@ -1,0 +1,50 @@
+name: "Bug Report"
+description: "Report an issue or unexpected behavior in TinaMusic"
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue! Please provide the details below so we can reproduce and resolve it quickly.
+  - type: input
+    id: system_os
+    attributes:
+      label: "Operating System and Architecture"
+      description: "e.g., Ubuntu 24.04 x86_64, Debian 12 ARM64"
+      placeholder: "Ubuntu 24.04 LTS (x86_64)"
+    validations:
+      required: true
+  - type: input
+    id: compiler_version
+    attributes:
+      label: "Compiler and Toolchain"
+      description: "e.g., GCC 13.2 / Go 1.22"
+      placeholder: "g++ (Ubuntu 13.2.0-23ubuntu4) 13.2.0"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: "Bug Description"
+      description: "A clear and concise description of what the bug is."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Steps To Reproduce"
+      description: "Exact steps to reproduce the behavior."
+      placeholder: |
+        1. Configure .env with valid credentials
+        2. Run `./start.sh`
+        3. Send `/play <song>` in group chat
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Console Logs"
+      description: "Relevant log output from terminal or bridge.log."
+      render: shell
+    validations:
+      required: false

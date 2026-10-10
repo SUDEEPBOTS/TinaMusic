@@ -1,3 +1,23 @@
+/*
+ * ============================================================================
+ * TinaMusic - Telegram's First Native C++20 Music Engine
+ * Copyright (C) 2026 TheTeamVivek / TinaMusic Contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * ============================================================================
+ */
+
 #include "bot_engine.hpp"
 #include "logger.hpp"
 #include "platforms.hpp"
@@ -575,7 +595,7 @@ void BotEngine::HandleHelp(const TgMessage& msg) {
 
     std::string text = lm.F(msg.chat.id, "help_main");
     if (text == "[help_main]" || text.empty()) {
-        text = "<blockquote>📖 <b><u>YukkiMusic Help Guide</u>:</b>\n\n<i>Choose a category below to view all available commands:</i></blockquote>";
+        text = "<blockquote>📖 <b><u>TinaMusic Help Guide</u>:</b>\n\n<i>Choose a category below to view all available commands:</i></blockquote>";
     }
     tg_->SendMessage(msg.chat.id, text, MakeHelpMarkup(msg.chat.id));
 }
@@ -1350,7 +1370,7 @@ void BotEngine::HandleBug(const TgMessage& msg, const std::string& args) {
 }
 
 void BotEngine::HandlePrivacy(const TgMessage& msg) {
-    tg_->SendMessage(msg.chat.id, "🛡️ <b>Privacy Policy:</b>\n\nYukkiMusic does not store personal message data or private calls. Audio streaming occurs strictly in memory with zero permanent voice chat recordings.");
+    tg_->SendMessage(msg.chat.id, "🛡️ <b>Privacy Policy:</b>\n\nTinaMusic does not store personal message data or private calls. Audio streaming occurs strictly in memory with zero permanent voice chat recordings.");
 }
 
 void BotEngine::HandleShell(const TgMessage& msg, const std::string& args) {
@@ -1375,7 +1395,7 @@ void BotEngine::HandleShell(const TgMessage& msg, const std::string& args) {
 
 void BotEngine::HandleRestart(const TgMessage& msg) {
     if (msg.from.id != config_.owner_id) return;
-    tg_->SendMessage(msg.chat.id, "♻️ <b>Restarting YukkiMusic C++ Engine...</b>");
+    tg_->SendMessage(msg.chat.id, "♻️ <b>Restarting TinaMusic C++ Engine...</b>");
     Stop();
 }
 

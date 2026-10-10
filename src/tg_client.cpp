@@ -1,3 +1,23 @@
+/*
+ * ============================================================================
+ * TinaMusic - Telegram's First Native C++20 Music Engine
+ * Copyright (C) 2026 TheTeamVivek / TinaMusic Contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * ============================================================================
+ */
+
 #include "tg_client.hpp"
 #include "logger.hpp"
 #include <curl/curl.h>
@@ -55,8 +75,8 @@ bool TelegramClient::TestConnection() {
     try {
         auto j = nlohmann::json::parse(res);
         if (j.value("ok", false) && j.contains("result")) {
-            bot_username_ = j["result"].value("username", "YukkiMusicBot");
-            bot_first_name_ = j["result"].value("first_name", "YukkiMusic");
+            bot_username_ = j["result"].value("username", "TinaMusicBot");
+            bot_first_name_ = j["result"].value("first_name", "TinaMusic");
             return true;
         }
     } catch (...) {

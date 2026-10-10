@@ -1,3 +1,23 @@
+/*
+ * ============================================================================
+ * TinaMusic - Telegram's First Native C++20 Music Engine
+ * Copyright (C) 2026 TheTeamVivek / TinaMusic Contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * ============================================================================
+ */
+
 #include "locales.hpp"
 #include "logger.hpp"
 #include <yaml-cpp/yaml.h>
@@ -16,9 +36,8 @@ LocalizationManager::LocalizationManager() {
 void LocalizationManager::InitLocales() {
     std::vector<std::string> search_dirs = {
         "locales",
-        "/root/YukkiMusic-Cpp/locales",
-        "internal/locales",
-        "/root/YukkiMusic-Go/internal/locales"
+        "../locales",
+        "./locales"
     };
 
     bool loaded = false;
@@ -32,8 +51,8 @@ void LocalizationManager::InitLocales() {
     }
 
     if (!loaded) {
-        strings_["en"]["welcome"] = "<blockquote>🎵 <b>Welcome to YukkiMusic (C++ Engine)</b></blockquote>";
-        strings_["en"]["help"] = "<blockquote>📖 <b>YukkiMusic C++ Commands:</b></blockquote>";
+        strings_["en"]["welcome"] = "<blockquote>🎵 <b>Welcome to TinaMusic (C++ Engine)</b></blockquote>";
+        strings_["en"]["help"] = "<blockquote>📖 <b>TinaMusic C++ Commands:</b></blockquote>";
         strings_["en"]["ping_start"] = "<blockquote>🏓 <b><u>ᴘɪηɢɪηɢ...</u></b>\n\n<i>ᴄʜєᴄᴋɪηɢ ʟᴧᴛєηᴄʏ &amp; sʏsᴛєᴍ sᴛᴧᴛs</i></blockquote>";
         strings_["en"]["start_group"] = "<b>💫 I’m here!</b> Try a command… if you think you can handle me 😉";
     }
