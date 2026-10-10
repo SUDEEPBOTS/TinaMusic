@@ -19,8 +19,37 @@
 #include <cstring>
 #include <iostream>
 #include <sys/random.h>
+#include <zlib.h>
 
 namespace tinaproto {
+
+static std::vector<uint8_t> DecompressGzip(const uint8_t* data, size_t size) {
+    if (size == 0) return {};
+    z_stream strm{};
+    if (inflateInit2(&strm, 32 + MAX_WBITS) != Z_OK) {
+        return {};
+    }
+    strm.next_in = const_cast<Bytef*>(data);
+    strm.avail_in = static_cast<uInt>(size);
+
+    std::vector<uint8_t> out;
+    uint8_t buffer[16384];
+    int ret = Z_OK;
+    do {
+        strm.next_out = buffer;
+        strm.avail_out = sizeof(buffer);
+        ret = inflate(&strm, Z_NO_FLUSH);
+        if (ret < 0 && ret != Z_BUF_ERROR) {
+            inflateEnd(&strm);
+            return {};
+        }
+        size_t have = sizeof(buffer) - strm.avail_out;
+        out.insert(out.end(), buffer, buffer + have);
+    } while (ret != Z_STREAM_END && strm.avail_out == 0);
+
+    inflateEnd(&strm);
+    return out;
+}
 
 MtprotoClient::MtprotoClient() = default;
 
@@ -225,7 +254,17 @@ std::vector<uint8_t> MtprotoClient::ExtractRpcResult(const std::vector<uint8_t>&
         TlReader r(payload);
         r.ReadUint32();
         r.ReadInt64();
-        return r.ReadRawBytes(r.Remaining());
+        std::vector<uint8_t> inner = r.ReadRawBytes(r.Remaining());
+        return ExtractRpcResult(inner);
+    } else if (constructor == 0x3072cfa1) {
+        TlReader r(payload);
+        r.ReadUint32();
+        std::vector<uint8_t> compressed = r.ReadBytes();
+        std::vector<uint8_t> decompressed = DecompressGzip(compressed.data(), compressed.size());
+        if (!decompressed.empty()) {
+            return ExtractRpcResult(decompressed);
+        }
+        return {};
     } else if (constructor == 0x9ec20908 && payload.size() >= 28) {
         salt_ = *reinterpret_cast<const int64_t*>(payload.data() + 20);
         return {};
@@ -404,18 +443,13 @@ std::string MtprotoClient::JoinGroupCall(int64_t chat_id, const std::string& loc
     }
     const auto& call = *call_opt;
 
-    int64_t self_id = session_.user_id;
-    int64_t self_access_hash = user_access_hashes_[self_id];
-
     TlWriter w;
-    w.PutUint32(0x8fb53057);
-    w.PutUint32(4);
+    w.PutUint32(0xb132ff7b);
+    w.PutUint32(0);
     w.PutUint32(0xd8aa840f);
     w.PutInt64(call.id);
     w.PutInt64(call.access_hash);
-    w.PutUint32(0xdde8a54c);
-    w.PutInt64(self_id);
-    w.PutInt64(self_access_hash);
+    w.PutUint32(0x7da07ec9);
     w.PutUint32(0x7d748d04);
     w.PutString(local_sdp_json);
 

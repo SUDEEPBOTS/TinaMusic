@@ -163,4 +163,9 @@ void TinaProtoClient::SetOnStreamEnd(std::function<void(int64_t)> cb) {
     on_stream_end_cb_ = std::move(cb);
 }
 
+std::optional<InputGroupCall> TinaProtoClient::GetGroupCall(int64_t chat_id) {
+    std::lock_guard<std::mutex> lock(mtx_);
+    return mtproto_.GetGroupCall(chat_id);
+}
+
 }

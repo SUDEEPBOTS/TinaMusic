@@ -25,5 +25,14 @@ int main() {
     }
 
     std::cout << "[TEST] SUCCESS: TinaProtoClient initialized with Telegram DC & NTgCalls!" << std::endl;
+
+    std::cout << "[TEST] Testing GetGroupCall for -1002324064857..." << std::endl;
+    auto call_opt = tinaproto::TinaProtoClient::GetInstance().GetGroupCall(-1002324064857);
+    if (!call_opt) {
+        std::cerr << "[TEST] FAILED: Could not resolve GroupCall for -1002324064857" << std::endl;
+        return 1;
+    }
+
+    std::cout << "[TEST] SUCCESS: Found GroupCall! ID: " << call_opt->id << " Hash: " << call_opt->access_hash << std::endl;
     return 0;
 }

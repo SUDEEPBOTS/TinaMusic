@@ -44,6 +44,8 @@ public:
 
     void SetOnStreamEnd(std::function<void(int64_t)> cb);
 
+    std::optional<InputGroupCall> GetGroupCall(int64_t chat_id);
+
     bool IsInitialized() const { return initialized_; }
 
 private:
